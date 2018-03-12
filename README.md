@@ -1,5 +1,5 @@
 # dtiQA_app
-This includes everything required to build a docker and corresponding singularity container for the dtiQA (topup_eddy_preprocess + dti_stats) pipeline. 
+This includes everything required to build a docker and corresponding singularity container for the dtiQA ([topup_eddy_preprocess](https://github.com/justinblaber/topup_eddy_preprocess) + [dti_stats](https://github.com/justinblaber/dti_stats)) pipeline. 
 
 # Build Instructions:
 Just clone and run `build.sh`
