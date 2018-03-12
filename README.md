@@ -27,4 +27,4 @@ singularity run -e \
 -B OUTPUTS/:/OUTPUTS \
 dtiQA.img
 ```
-For a more detailed instructions please visit: [https://justinblaber.org/dwmri-preprocessing/](https://justinblaber.org/dwmri-preprocessing/)
+For more detailed instructions please visit: [https://justinblaber.org/dwmri-preprocessing/](https://justinblaber.org/dwmri-preprocessing/)
