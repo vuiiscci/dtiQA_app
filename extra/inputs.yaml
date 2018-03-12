@@ -1,0 +1,5 @@
+---
+root:
+- INPUTS:
+    - dtiQA.conf // config file specifying inputs. Please visit justinblaber.org/dwmri-preprocessing/ for a full explanation of the inputs
+
