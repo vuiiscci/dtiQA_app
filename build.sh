@@ -39,6 +39,3 @@ sudo docker build --rm -t justinblaber/dtiqa .
 
 # Push docker - note this only affects latest tag. Must retag and push if you want to give a specific tag
 sudo docker push justinblaber/dtiqa
-
-# Create singularity image
-sudo singularity build dtiQA.img Singularity
