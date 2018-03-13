@@ -41,4 +41,4 @@ sudo docker build --rm -t justinblaber/dtiqa .
 sudo docker push justinblaber/dtiqa
 
 # Create singularity image
-singularity build dtiQA.img docker://justinblaber/dtiqa
+sudo singularity build dtiQA.img Singularity
