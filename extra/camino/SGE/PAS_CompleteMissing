@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# Finds non-completed voxels in specified datasets by searching for empty
+# or non-existant files and reruns them with longer time allocation.
+
+set -e
+
+if [ $# -lt 2 ]; then echo "PAS_CompleteMissing <DATAFILE> <SCHEMEFILE> <OUTPUT DIRECTORY> <NUM VOX>"; fi
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+DATAFILE=$1
+SCHEMEFILE=$2
+OUTPUTDIR=$3
+
+NUMVOX=16384
+if [ $# -gt 3 ]; then NUMVOX=$4; fi
+
+for((i=0; i<$NUMVOX; i=i+1)); do PADI=`StringZeroPad $i 8`; if [ -s ${OUTPUTDIR}/${PADI}.Bdouble ] && [ -s ${OUTPUTDIR}/${PADI}_PDs.Bdouble ]; then T=1; else qsub -l s_rt=02:00:00 ${SCRIPTDIR}/PAS_Wrapper $i $DATAFILE $SCHEMEFILE $OUTPUTDIR; sleep 1; fi; done
+

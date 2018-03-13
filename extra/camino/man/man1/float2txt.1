@@ -1,0 +1,66 @@
+.\" $Id: float2txt.1,v 1.2 2006/04/20 12:54:34 ucacdxa Exp $
+
+.TH float2txt 1
+
+.SH NAME
+float2txt \- Converts big-endian binary float data to text.
+
+.SH SYNOPSIS
+.B float2txt \fR [\fIdecimal_places\fR] [\fB-linenum\fR] [\fB-components\fR <\fIN\fR>]
+
+.SH DESCRIPTION
+Reads big-endian binary floating point data from the standard input and outputs each
+float as text in scientific notation with six decimal places by default, although the
+number of decimal places can be specificied, optionally, as the first command line
+argument.
+
+.SH EXAMPLES
+
+Output as text the floats stored as binary data in test.Bfloat:
+
+cat test.Bfloat | float2txt
+
+The output has the form:
+
+ 5.500000E01
+ -1.003820E-01
+ -1.230454E01
+ -1.447965E01
+ 4.998373E00
+ :
+
+Specify 8 decimal places rather than the default 6:
+
+cat test.Bfloat | float2txt 8
+
+The output has the form:
+
+ 5.50000000E01
+ -1.00381965E-01
+ -1.23045428E01
+ -1.44796451E01
+ 4.99837343E00
+ :
+
+.SH OPTIONS
+
+The first option is a single integer for the number of decimal places in the output. It
+is required if other options are specified.
+
+.TP
+.B \-linenum
+Print line numbers in output.
+
+.TP
+.B \-components\fR <\fIN\fR>
+Assume output is voxel data with \fIN\fR components. Output will be annotated with voxel
+number and component number.
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+double2txt(1), byte2txt(1), char2txt(1), short2txt(1), int2txt(1), long2txt(1),
+shredder(1).
+
+.SH BUGS

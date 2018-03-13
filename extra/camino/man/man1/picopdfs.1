@@ -1,0 +1,112 @@
+.\" $Id: picopdfs.1,v 1.7 2006/04/20 12:54:35 ucacdxa Exp $
+
+.TH picopdfs 1
+
+.SH NAME
+picopdfs \- Gets the parameters of a PICo PDF for an image.
+
+.SH SYNOPSIS
+.B picopdfs 
+-inputmodel <\fIdt\fR | \fImultitensor\fR | \fIpds\fR> -luts <\fIfiles\fR>
+
+.SH DESCRIPTION
+Computes the orientation and concentration parameters of the PICo PDF in each voxel.
+These parameters are used by \fBtrack\fR. The output is a voxel order file containing the
+PICo parameters for each voxel in the image. The output format is
+
+[numPDsClass, PD1_PARAMS, PD2_PARAMS, PD{max}_PARAMS]
+
+where numPDsClass is determined from the input data. This is the number of PDs that the
+voxel is classified as containing, and may range from 0 to max. This parameter does not
+affect the length of the voxel; if the number of PDs are less than max, the extra space
+is filled with zeros.
+
+The parameters for each principal direction, PD{n}_PARAMS, are
+
+[mix, e1_x, e1_y, e1_z, e2_x, e2_y, e2_z, e3_x, e3_y, e3_z, picoParam_1...picoParam_N]
+
+The input data is the output of either \fBmodelfit\fR or \fBsfpeaks\fR. Non-tensor data
+can be used by generating pds from \fBsfpeaks\fR. Both tensor data and non-tensor data
+can also be used with \fBtrack\fR for deterministic streamline tractography, see
+sfpeaks(1) and track(1).
+
+The parameter mix is the mixing parameter from a multi-compartment Gaussian model, or the
+peak strength associated with the PD by \fBsfpeaks\fR. The three orthogonal unit vectors
+e1, e2, e3 describe the orientation of the PDF. The parameters picoParam_1...N are the N
+concentration parameters of the PDF, taken from the lookup table.
+
+.SH EXAMPLES
+
+Map parameters from a lookup table to an image.
+
+cat SubjectA.oneDT.Bdouble | picopdfs -pdf watson -luts watsonLUT_Ascheme_snr16_inv1
+-inputmodel dt > SubjectA.oneDT.watson.Bdouble
+
+Map two-tensor data. We pass two LUTs, the first for voxels containing one tensor and the
+second for voxels containing two tensors.
+
+picopdfs -inputfile SubjectA.twoEig.Bdouble -pdf bingham -luts
+binghamLUT_Ascheme_snr16_inv1 twoTensorBinghamLUT_Ascheme_snr16_inv1 -inputmodel
+multitensor > SubjectA.twoDT.bingham.Bdouble
+
+In the next example we show how to use the calibration from \fBsflutgen\fR to create a
+PICo map using pds from \fBsfpeaks\fR. Note that we pass three LUTs to picopdfs. This is
+because we have specified -numpds 3. We therefore need to have a separate LUT for each of
+the 1, 2 and 3 fibre cases.
+
+cat SubjectA.pds.Bdouble | picopdfs -inputmodel pds -numpds 3 -pdf bingham -luts
+bingham_oneFibreSurfaceCoeffs.Bdouble bingham_twoFibreSurfaceCoeffs.Bdouble
+bingham_twoFibreSurfaceCoeffs.Bdouble > SubjectA.pds_map.Bdouble
+
+.SH OPTIONS
+
+.TP
+.B \-luts\fR <\fIFiles containing LUTs\fR>
+Files containing the lookup tables. For tensor data, one lut must be specified for each
+type of inversion used in the image (one-tensor, two-tensor, three-tensor). For pds, the
+number of LUTs must match -numpds (it is acceptable to use the same LUT several times -
+see example, above). These LUTs may be generated with \fBdtlutgen\fR.
+
+.TP
+.B \-inputmodel\fR <\fIdt\fR | \fImultitensor\fR | \fIpds\fR>
+The type of model used for the input.
+
+.TP
+.B \-numpds \fR <\fInumber\fR>
+The maximum number of PDs in a voxel (default 3) for PD data.  This option determines the
+size of the input and output voxels. This means that the data file may be large enough to
+accomodate three or more PDs, but does not mean that any of the voxels are classified as
+containing three or more PDs.
+
+.TP
+.B \-pdf \fR <\fIwatson\fR | \fIbingham\fR | \fIacg\fR>
+Specifies the PDF to use.  There are three choices:
+
+watson - The Watson distribution. This distribution is rotationally symmetric.
+
+bingham - The Bingham distributionn, which allows elliptical probability density
+contours.
+
+acg - The Angular Central Gaussian distribution, which also allows elliptical probability
+density contours/
+
+.TP
+.B \-directmap
+Only applicable when using pds as the inputmodel.  Use direct mapping between the
+eigenvalues and the distribution parameters instead of the log of the eigenvalues.
+
+.TP
+.B \-maxcomponents \fR <\fInumber\fR>
+The maximum number of tensor components in a voxel (default 2) for multitensor data.
+Currently, only the default is supported, but future releases may allow the input of
+three-tensor data using this option.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+Kiran K Seunarine <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), dtlutgen(1), track(1)
+
+.SH BUGS

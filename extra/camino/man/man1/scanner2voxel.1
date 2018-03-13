@@ -1,0 +1,73 @@
+.\" $Id: scanner2voxel.1,v 1.3 2005/09/26 10:36:44 ucacpco Exp $
+
+.TH scanner2voxel 1
+
+.SH NAME
+scanner2voxel \- Converts scanner-order data to voxel-order data.
+
+.SH SYNOPSIS
+.B scanner2voxel
+-voxels <number of voxels> -components <measurements per voxel> [\fIoptions\fR]
+
+.SH DESCRIPTION
+Converts scanner order data files into the voxel order required by the Camino toolkit.
+Scanner-order data-files store the whole volume of the first measurement followed by the
+whole volume of the second measurement followed by the whole volume of subsequent
+measurements. Analyze format diffusion MRI data files are commonly in scanner order.
+Voxel-order data files store all of the measurements for the first voxel followed by all
+the measurements for the second voxel followed by all measurements for subsequent voxels.
+
+By default, the input and output data type is big-endian float.
+
+This program deals with raw data only. If endian conversion is required, use \fBshredder\fR. If 
+the data has a header, use \fBimage2voxel\fR - which will take care of input endian / type conversion 
+as needed.
+
+.SH EXAMPLES
+Convert scanner order data file ScannerOrder.img, for which the measurement volume has
+size 128x128x60 and the acquisition scheme acquires 6 measurements with b=0 and 54
+diffusion-weighted measurements, to voxel order:
+
+scanner2voxel -voxels 983040 -components 60 < ScannerOrder.img > VoxelOrder.Bfloat
+
+Equivalently:
+
+scanner2voxel -voxels 983040 -components 60 -inputfile ScannerOrder.img >
+VoxelOrder.Bfloat
+
+Fit the diffusion tensor to the scanner-order data in ScannerOrder.img assuming the
+acquisition scheme is specified in A.scheme:
+
+scanner2voxel -voxels 983040 -components 60 < ScannerOrder.img | dtfit - A.scheme
+-nonlinear > DiffTensorA.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-voxels\fR <number of voxels>
+The number of voxels in the input data.
+
+.TP
+.B \-components\fR <number of measurements>
+The number of measurements per voxel.
+
+.TP
+.B \-inputfile\fR <\fIinput filename\fR>
+The name of the input file.
+
+.TP
+.B \-inputdatatype\fR <\fIdata type of input\fR>
+Specifies the data type of the input file.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double".
+
+.TP
+.B \-outputdatatype\fR <\fIdata type of output\fR>
+Specifies the data type of the output data.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double".
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+image2voxel(1), shredder(1), voxel2scanner(1)
+
+.SH BUGS

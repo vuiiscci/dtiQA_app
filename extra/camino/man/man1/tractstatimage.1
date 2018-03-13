@@ -1,0 +1,83 @@
+.\" $Id$
+
+.TH tractstatimage 1 
+
+.SH NAME
+tractstatimage \- Computes images based on statistics from streamline tracts.
+
+.SH SYNOPSIS
+.B tractstatimage [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+This program is an extension to \fBtractstats\fR that combines statistics from streamline
+tracts into an image.
+
+The tract statistic is computed for each tract using the methods described in
+tractstats(1). The statistic from each tract is combined into a single value according
+to the image statistic, which is specified by the \fB-imagestat\fR option. The image
+statistic in each voxel in the image is computed from the tract statistics of either all
+tracts seeded in that voxel (default behaviour) or all tracts that intersect the voxel.
+
+.SH IMAGE STATISTICS
+
+The image statistic is either the mean, minimum, maximum, median, or variance of the
+tract statistics in each voxel. By default, each voxel of the image only contains the
+values from tracts that are seeded in that voxel. This option can be changed with the
+\fB-countintersect\fR option.
+
+.SH COUNT INTERSECT
+
+With the \fB-countintersect\fR option, the value from each tract is added to all voxels
+intersected by the tract.
+
+.SH EXAMPLES
+Output the maximum of the mean FA values (one value per input tract) in each voxel.
+
+ cat tracts.Bfloat | tractstatimage -scalarfile fa.nii.gz -outputroot tract_meanFA_max \\ 
+ -tractstat mean -imagestat max
+
+.SH OPTIONS
+
+.TP
+.B \-scalarfile\fR <\fIfile\fR>
+Path to an image containing the scalars. The image should be defined in the same space as
+the streamlines. The image dimensions are taken from the header.
+
+.TP
+.B \-interpolate\fR
+Use tri-linear interpolation to find the image value at each point on the streamline. If
+this  is not specified, the default behaviour is to use nearest-neighbour interpolation.
+
+.TP
+.B \-tractstat\fR <\fIstat\fR>
+One of "mean", "min", "max", "median", "var", "sum", "length", "endpointsep". This is the
+statistic  computed for each tract. All options except "length" and "endpointsep" refer
+to image statistics, and should be accompanied by a scalar file.
+
+.TP
+.B \-header\fR <\fIhdr\fR>
+Used to define image space when a scalar file is not used, eg when the tractstat is
+"length". 
+
+.TP
+.B \-imagestat\fR <\fIstat\fR>
+One of "mean", "min", "max", "median", "var". This is the statistic computed on the 
+tract statistics in each voxel.
+
+.TP
+.B \-countintersect\fR
+Each tract statistic is placed in all voxels intersected by the tract, rather than just
+in the	seed voxel.
+
+.TP
+.B \-outputroot\fR <\fIroot\fR>
+Output of the image statistic is to root.[ext], which is defined by the input header.
+
+.SH AUTHORS
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+tractstats(1), track(1), procstreamlines(1)
+
+.SH BUGS

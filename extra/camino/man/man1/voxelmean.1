@@ -1,0 +1,28 @@
+\" $Id: mean.1,v 1.0 2007/09/19 16:31:32 ucacmgh Exp $
+
+.TH mean 1
+
+.SH NAME
+voxelmean \- calculates the mean of each diffusion MRI measurement in a set of voxels. 
+
+.SH SYNOPSIS
+.B voxelmean -voxelelements <int N> [-inputdatatype <float|double> -inputfile <filename>]
+
+.SH DESCRIPTION
+Reads a given number of elements with optionally specified type from a data source and
+calculates the mean of each. 
+Output is a single voxel with the same number of components as the input voxels. 
+
+.SH EXAMPLES
+calculate the mean of a set of measurements test.bdouble with 62 elements in each voxel 
+
+cat test.bdouble | voxelmean -voxelelements 62 -inputdatatype double 
+
+.SH OPTIONS
+
+.SH "AUTHORS"
+Matt Hall <camino@cs.ucl.ac.uk> 
+
+.SH "SEE ALSO"
+
+.SH BUGS

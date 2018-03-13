@@ -1,0 +1,52 @@
+.\" $Id: shredder.1,v 1.2 2005/10/11 11:45:05 ucacpco Exp $
+
+.TH shredder 1
+
+.SH NAME
+shredder \- Extracts periodic chunks from a data stream.
+
+.SH SYNOPSIS
+.B shredder
+<\fIoffset\fR> <\fIchunksize\fR> <\fIspace\fR>
+
+.SH DESCRIPTION
+Shredder makes an initial offset of \fIoffset\fR bytes. It then reads and outputs
+\fIchunksize\fR bytes, skips \fIspace\fR bytes, and repeats until there is no more input.
+
+If the \fIchunksize\fR is negative, chunks of size |\fIchunksize\fR| are read and the
+byte ordering of each chunk is reversed. The whole chunk will be reversed, so the chunk
+must be the same size as the data type, otherwise the order of the values in the chunk,
+as well as their endianness, will be reversed.
+
+.SH EXAMPLES
+
+Output every third double (8-byte) in the file test.Bdouble
+
+cat test.Bdouble | shredder 0 8 16
+
+Extract and reverse the byte ordering of every third double (8-byte)
+
+cat test.Bdouble | shredder 0 -8 16
+
+Extract and reverse byte ordering of values 0, 1, 4, 5, 8, 9...
+
+cat test.Bdouble | shredder 0 16 16 | shredder 0 -8 0
+
+Output the doubles in positions 4, 7, 10, ..., 3i+4, ...
+
+cat test.Bdouble | shredder 32 8 16
+
+Output as text just the Dxx entry of the diffusion tensor in each voxel for the
+diffusion-weighted data file A.Bfloat acquired using the acquisition scheme detailed in
+A.scheme:
+
+cat A.Bfloat | dtfit - A.scheme | shredder 16 8 56 | double2txt
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+double2txt(1), float2txt(1), byte2txt(1), char2txt(1), short2txt(1), int2txt(1),
+long2txt(1).
+
+.SH BUGS

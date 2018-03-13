@@ -1,0 +1,580 @@
+# Simple tests on a single voxel of synthetic data
+
+# Create single voxel data set
+bin/datasynth -testfunc 1 -schemefile test/bmx7_ED.scheme1 -voxels 1 -snr 16 > /tmp/test.Bfloat
+
+# Run single-run ball and stick fitting
+echo 1
+bin/modelfit -inputfile /tmp/test.Bfloat -fitmodel ballstick -fitalgorithm lm -schemefile test/bmx7_ED.scheme1 | bin/double2txt
+# Other noise models
+echo 2
+bin/modelfit -inputfile /tmp/test.Bfloat -fitmodel ballstick -fitalgorithm lm -noisemodel offgauss -sigma 0.0625 -schemefile test/bmx7_ED.scheme1 | bin/double2txt
+echo 3
+bin/modelfit -inputfile /tmp/test.Bfloat -fitmodel ballstick -fitalgorithm lm -noisemodel rician -sigma 0.0625 -schemefile test/bmx7_ED.scheme1 | bin/double2txt
+
+# Multi-run ball and stick fitting
+echo 4
+bin/modelfit -fitmodel ballstick -fitalgorithm multirunlm -inputfile /tmp/test.Bfloat -schemefile test/bmx7_ED.scheme1 -samples 2 | bin/double2txt
+
+# MCMC ball and stick fitting
+echo 5
+bin/modelfit -inputfile /tmp/test.Bfloat -fitmodel ballstick -fitalgorithm mcmc -sigma 0.0625 -schemefile test/bmx7_ED.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/double2txt
+# Output the acceptance rate from the previous run
+echo 6
+bin/double2txt < /tmp/ms.Bdouble
+
+# Test chunkstats with MCMC and ball and stick fitting
+# First computing the mean over samples
+echo 7
+bin/modelfit -inputfile /tmp/test.Bfloat -fitmodel ballstick -fitalgorithm mcmc -sigma 0.0625 -schemefile test/bmx7_ED.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 9 -mean | bin/double2txt
+# and now with the minimum cost sample.
+echo 8
+bin/modelfit -inputfile /tmp/test.Bfloat -fitmodel ballstick -fitalgorithm mcmc -sigma 0.0625 -schemefile test/bmx7_ED.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 9 -min 8 | bin/double2txt
+
+# Try multivoxel run.
+echo 9
+bin/datasynth -testfunc 1 -schemefile test/bmx7_ED.scheme1 -voxels 10 -snr 16 > /tmp/test10.Bfloat
+bin/modelfit -inputfile /tmp/test10.Bfloat -fitmodel ballstick -fitalgorithm lm -schemefile test/bmx7_ED.scheme1 | bin/double2txt
+bin/modelfit -inputfile /tmp/test10.Bfloat -fitmodel ballstick -fitalgorithm mcmc -sigma 0.0625 -schemefile test/bmx7_ED.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 9 -min 8 | bin/double2txt
+bin/double2txt < /tmp/ms.Bdouble
+
+# This is a good set of tests to copy for each model.
+echo 10 Ball and stick
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballstick -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballstick -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballstick -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballstick -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 9 -min 8 | bin/double2txt
+echo Gaussian MCMC
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballstick -fitalgorithm mcmc -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 9 -min 8 | bin/double2txt
+bin/double2txt < /tmp/ms.Bdouble
+echo Offset Gaussian MCMC
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballstick -fitalgorithm mcmc -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 9 -min 8 | bin/double2txt
+bin/double2txt < /tmp/ms.Bdouble
+echo Rician MCMC
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballstick -fitalgorithm mcmc -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 9 -min 8 | bin/double2txt
+bin/double2txt < /tmp/ms.Bdouble
+
+# Test the MMWMD in-vivo model
+echo 11 MMWMD in-vivo
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel mmwmdinvivo -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel mmwmdinvivo -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel mmwmdinvivo -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel mmwmdinvivo -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 15 -min 14 | bin/double2txt
+echo Gaussian MCMC
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel mmwmdinvivo -fitalgorithm mcmc -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 15 -min 14 | bin/double2txt
+bin/double2txt < /tmp/ms.Bdouble
+echo Offset Gaussian MCMC
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel mmwmdinvivo -fitalgorithm mcmc -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 15 -min 14 | bin/double2txt
+bin/double2txt < /tmp/ms.Bdouble
+echo Rician MCMC
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel mmwmdinvivo -fitalgorithm mcmc -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 -mcmcstatsfile /tmp/ms.Bdouble | bin/chunkstats -samples 100 -chunksize 15 -min 14 | bin/double2txt
+bin/double2txt < /tmp/ms.Bdouble
+
+# Test the BallCylinder fixed tissue model
+echo 12 BallCylinder
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballcylinder -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballcylinder -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballcylinder -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballcylinder -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 10 -min 9 | bin/double2txt
+
+# Test the BallGDRCylinders fixed tissue model
+echo 13 BallGDRCylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballGDRCylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballGDRCylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballGDRCylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ballGDRCylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 11 -min 10 | bin/double2txt
+
+# Test the ZeppelinStick fixed tissue model
+echo 14 ZeppelinStick
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStick -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStick -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStick -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStick -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 12 -min 11 | bin/double2txt
+
+# Test the ZeppelinCylinder fixed tissue model
+echo 15 ZeppelinCylinder
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinder -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinder -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinder -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinder -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 13 -min 12 | bin/double2txt
+
+# Test the ZeppelinGDRCylinders fixed tissue model
+echo 16 ZeppelinGDRCylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 14 -min 13 | bin/double2txt
+
+# Test the TensorStick fixed tissue model
+echo 17 TensorStick
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStick -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStick -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStick -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStick -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 14 -min 13 | bin/double2txt
+
+
+# Test the TensorCylinder fixed tissue model
+echo 18 TensorCylinder
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinder -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinder -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinder -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinder -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 15 -min 14 | bin/double2txt
+
+# Test the TensorGDRCylinders fixed tissue model
+echo 19 TensorGDRCylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 16 -min 15 | bin/double2txt
+
+exit
+
+# Test the BallStickDot fixed tissue model
+echo 20 BallStickDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 10 -min 9 | bin/double2txt
+
+
+# Test the BallCylinderDot fixed tissue model
+echo 21 BallCylinderDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 11 -min 10 | bin/double2txt
+
+# Test the BallGDRCylindersDot fixed tissue model
+echo 22 BallGDRCylindersDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 12 -min 11 | bin/double2txt
+
+# Test the ZeppelinStickDot fixed tissue model
+echo 23 ZeppelinStickDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 13 -min 12 | bin/double2txt
+
+# Test the ZeppelinCylinderDot fixed tissue model
+echo 24 ZeppelinCylinderDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 14 -min 13 | bin/double2txt
+
+# Test the ZeppelinGDRCylindersDot fixed tissue model
+echo 25 ZeppelinGDRCylindersDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 15 -min 14 | bin/double2txt
+
+# Test the TensorStickDot fixed tissue model
+echo 26 TensorStickDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 15 -min 14 | bin/double2txt
+
+# Test the TensorCylinderDot fixed tissue model
+echo 27 TensorCylinderDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 16 -min 15 | bin/double2txt
+
+# Test the TensorGDRCylindersDot fixed tissue model
+echo 28 TensorGDRCylindersDot
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersDot -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersDot -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersDot -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersDot -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 17 -min 16 | bin/double2txt
+
+# Test the BallStickAstrosticks fixed tissue model
+echo 29 BallStickAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 11 -min 10 | bin/double2txt
+
+# Test the BallCylinderAstrosticks fixed tissue model
+echo 30 BallCylinderAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 12 -min 11 | bin/double2txt
+
+# Test the BallGDRCylindersAstrosticks fixed tissue model
+echo 31 BallGDRCylindersAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 13 -min 12 | bin/double2txt
+
+# Test the ZeppelinStickAstrosticks fixed tissue model
+echo 32 ZeppelinStickAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 14 -min 13 | bin/double2txt
+
+# Test the ZeppelinCylinderAstrosticks fixed tissue model
+echo 32 ZeppelinCylinderAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 15 -min 14 | bin/double2txt
+
+# Test the ZeppelinGDRCylindersAstrosticks fixed tissue model
+echo 33 ZeppelinGDRCylindersAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 16 -min 15 | bin/double2txt
+
+
+# Test the TensorStickAstrosticks fixed tissue model
+echo 34 TensorStickAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 16 -min 15 | bin/double2txt
+
+# Test the TensorCylinderAstrosticks fixed tissue model
+echo 35 TensorCylinderAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 17 -min 16 | bin/double2txt
+
+# Test the TensorGDRCylindersAstrosticks fixed tissue model
+echo 36 TensorGDRCylindersAstrosticks
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersAstrosticks -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersAstrosticks -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersAstrosticks -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersAstrosticks -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 18 -min 17 | bin/double2txt
+
+# Test the BallStickAstrocylinders fixed tissue model
+echo 37 BallStickAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 13 -min 12 | bin/double2txt
+
+# Test the BallCylinderAstrocylinders fixed tissue model
+echo 38 BallCylinderAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 14 -min 13 | bin/double2txt
+
+# Test the BallGDRCylindersAstrocylinders fixed tissue model
+echo 39 BallGDRCylindersAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 15 -min 14 | bin/double2txt
+
+# Test the ZeppelinStickAstrocylinders fixed tissue model
+echo 40 ZeppelinStickAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 15 -min 14 | bin/double2txt
+
+# Test the ZeppelinCylinderAstrocylinders fixed tissue model
+echo 41 ZeppelinCylinderAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 16 -min 15 | bin/double2txt
+
+# Test the ZeppelinGDRCylindersAstrocylinders fixed tissue model
+echo 42 ZeppelinGDRCylindersAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 17 -min 16 | bin/double2txt
+
+# Test the TensorStickAstrocylinders fixed tissue model
+echo 43 TensorStickAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 17 -min 16 | bin/double2txt
+
+# Test the TensorCylinderAstrocylinders fixed tissue model
+echo 44 TensorCylinderAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 18 -min 17 | bin/double2txt
+
+# Test the TensorGDRCylindersAstrocylinders fixed tissue model
+echo 45 TensorGDRCylindersAstrocylinders
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersAstrocylinders -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersAstrocylinders -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersAstrocylinders -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersAstrocylinders -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 19 -min 18 | bin/double2txt
+
+# Test the BallStickSphere fixed tissue model
+echo 46 BallStickSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallStickSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 12 -min 11 | bin/double2txt
+
+# Test the BallCylinderSphere fixed tissue model
+echo 47 BallCylinderSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallCylinderSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 13 -min 12 | bin/double2txt
+
+# Test the BallGDRCylindersSphere fixed tissue model
+echo 48 BallGDRCylindersSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel BallGDRCylindersSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 14 -min 13 | bin/double2txt
+
+# Test the ZeppelinStickSphere fixed tissue model
+echo 49 ZeppelinStickSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinStickSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 15 -min 14 | bin/double2txt
+
+# Test the ZeppelinCylinderSphere fixed tissue model
+echo 50 ZeppelinCylinderSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinCylinderSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 16 -min 15 | bin/double2txt
+
+# Test the ZeppelinGDRCylindersSphere fixed tissue model
+echo 51 ZeppelinGDRCylindersSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel ZeppelinGDRCylindersSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 17 -min 16 | bin/double2txt
+
+# Test the TensorStickSphere fixed tissue model
+echo 52 TensorStickSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorStickSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 17 -min 16 | bin/double2txt
+
+# Test the TensorCylinderSphere fixed tissue model
+echo 53 TensorCylinderSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorCylinderSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 18 -min 17 | bin/double2txt
+
+# Test the TensorGDRCylindersSphere fixed tissue model
+echo 54 TensorGDRCylindersSphere
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersSphere -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersSphere -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersSphere -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel TensorGDRCylindersSphere -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 19 -min 18 | bin/double2txt
+
+# Test the VERDICTcolorectal  tissue model
+echo 55 VERDICTcolorectal
+echo Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel VERDICTcolorectal -fitalgorithm lm -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Offset Gaussian LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel VERDICTcolorectal -fitalgorithm lm -noisemodel offgauss -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Rician LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel VERDICTcolorectal -fitalgorithm lm -noisemodel rician -sigma 20 -schemefile test/ActiveAxG140_PM.scheme1 | bin/double2txt
+echo Gaussian multi-run LM
+bin/modelfit -inputfile test/ActiveAxG140_Voxel49454.Bfloat -fitmodel VERDICTcolorectal -fitalgorithm multirunlm -samples 5 -schemefile test/ActiveAxG140_PM.scheme1 | bin/chunkstats -samples 5 -chunksize 19 -min 18 | bin/double2txt
+

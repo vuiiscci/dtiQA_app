@@ -1,0 +1,104 @@
+.\" $Id$
+
+.TH image2voxel 1
+
+.SH NAME
+image2voxel \- Converts scanner-order data in a supported image format to voxel-order
+data.
+
+.SH SYNOPSIS
+.B image2voxel
+-inputfile <image> | -imagelist <file> [\fIoptions\fR]
+
+.SH DESCRIPTION
+Converts image files into the voxel ordering required by the Camino toolkit. By default,
+the output data type is float.
+
+Two data formats are supported. The input may be a single file containing all components or a list of 
+files containing each component separately, in order.
+
+The 3D format is a series of files, each containing a single volume for one diffusion-weighted measurement. 
+The order of the volumes must match the order of the corresponding measurements in the scheme file.
+
+To convert 3D files to voxel order, pass a text file containing a list of images. For
+separate header / image pairs, list the headers:
+
+ dwi1.hdr
+ dwi2.hdr
+ ...
+ dwiN.hdr
+
+for files that contain a single image, list the images
+
+ dwi1.nii
+ dwi2.nii
+ ...
+ dwiN.nii
+
+for each of the N measurements. The order of the names in the file must match the order
+of the scheme file (see camino(1)). The program assumes that the images are in the same
+directory as the image list file, unless told otherwise with the \fB-imageprefix\fR
+option.
+
+Scalar images (a single component per voxel) can usually be read directly into Camino, however they
+may be converted to raw format using this program.
+
+
+.SH EXAMPLES
+
+Convert a 4D scanner order data file ScannerOrder.img, for which the measurement volume
+has size 128x128x60 and the acquisition scheme acquires 6 measurements with b=0 and 54
+diffusion-weighted measurements, to voxel order. The header ScannerOrder.hdr has
+height=128, width=128, depth=60, nImages=60.
+
+  image2voxel -inputfile ScannerOrder.hdr > VoxelOrder.Bfloat
+
+This is equivalent to the command:
+
+  scanner2voxel -voxels 983040 -components 60 < ScannerOrder.img > VoxelOrder.Bfloat
+
+Convert NIfTI images stored as 3D volumes, listed in the file volumes.txt, to voxel
+order, and output the results as double
+
+  image2voxel -imagelist volumes.txt -outputdatatype double > VoxelOrder.Bdouble
+
+Do the same thing, but this time the 3D volumes are in the directory ./data
+
+  image2voxel -imagelist volumes.txt -imageprefix ./data/ -outputdatatype double > VoxelOrder.Bdouble
+
+Set the prefix to root when the image list contains absolute paths
+
+  image2voxel -imagelist volumes.txt -imageprefix / -outputdatatype double > VoxelOrder.Bdouble
+
+
+.SH OPTIONS
+.TP
+.B \-inputfile\fR <\fIimage\fR> | \fB\-4dimage\fR <\fIfile\fR> 
+Path to the input image file or header to be converted.
+
+.TP
+.B \-imagelist\fR <\fIfilename\fR>
+Name of a file containing a list of 3D images, each containing a single
+diffusion-weighted measurement.  The order of the headers in the list must match the
+order of the corresponding measurements in the scheme file.
+
+.TP
+.B \-imageprefix\fR <\fIprefix\fR>
+Path to prepend onto filenames in the imagelist. Has no effect on paths specified on the
+command  line with \fB\-4dimage\fR. The default prefix is the directory containing the
+image list. This option is used when the imagelist is not in the same directory as the
+images it describes.
+
+.TP
+.B \-outputdatatype\fR <\fIdata type of output\fR>
+Specifies the data type of the output data.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". The default output data
+type is float.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+scanner2voxel(1), analyzedti(1)
+
+.SH BUGS

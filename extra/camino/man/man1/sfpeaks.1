@@ -1,0 +1,162 @@
+.\" $Id: sfpeaks.1,v 1.7 2006/04/20 12:54:36 ucacdxa Exp $
+
+.TH "sfpeaks" 1
+.SH NAME
+sfpeaks \- Finds the peaks of spherical functions.
+
+.SH SYNOPSIS
+.B sfpeaks -inputmodel <model> [\fIoptions\fR]
+.SH DESCRIPTION
+
+Reads coefficients of the spherical functions and outputs a list of peak directions of
+the function. The program computes the value of the function at each of a set of sample
+points. Then it finds local maxima by finding all points at which the function is larger
+than for any other point within a fixed search radius (the default is 0.4). The program
+then uses Powell\'s algorithm to optimize the position of each local maximum. Finally the
+program removes duplicates and tiny peaks with function value smaller than some
+threshold, which is the mean of the function plus some number of standard deviations. By
+default the program checks for consistency with a second set of starting points, but
+skips the optimization step. To speed up execution, you can turn off the consistency
+check by adding the -noconsistencycheck option.
+
+By default, the program constructs a set of sample points by randomly rotating a unit
+icosahedron repeatedly (the default is 1000 times, which produces a set of 6000 points)
+and concatenating the lists of vertices. The -pointset <index> option can tell the
+program to use an evenly distributed set of points (index 0 gives 1082 points, 1 gives
+1922, 2 gives 4322, 3 gives 8672, 4 gives 15872, 5 gives 32762, 6 gives 72032), which is
+quicker, because you can get away with fewer points. We estimate that you can use a
+factor of 2.5 less evenly distributed points than randomly distributed points and still
+expect similar performance levels.
+
+The program uses standard input and output streams for input and output data. The output
+for each voxel is:
+
+ - exitcode (inherited from the input stream).
+ - ln(A(0))
+ - number of peaks found.
+ - flag for consistency with a repeated run (number of directions is
+   the same and the directions are the same to within a threshold.)
+ - mean(f).
+ - std(f).
+ - direction 1 (x, y, z, f, H00, H01, H10, H11).
+ - direction 2 (x, y, z, f, H00, H01, H10, H11).
+ - direction 3 (x, y, z, f, H00, H01, H10, H11).
+
+H is the Hessian of f at the peak. It is the matrix:
+
+ [d^2f/ds^2 d^2f/dsdt]
+ [d^2f/dtds d^2f/dt^2]
+
+= [H00 H01]
+
+  [H10 H11]
+
+where s and t are orthogonal coordinates local to the peak.
+
+By default the maximum number of peak directions output in each voxel is three. If less
+than three directions are found, zeros are output for later directions. The peaks are
+ordered by the value of the function at the peak. If more than the maximum number of
+directions are found only the strongest ones are output. The maximum number can be
+changed using the -numpds command line option.
+
+The program can read various kinds of spherical function, but must be told what kind of
+function is input using the -inputmodel flag. The \fB\-inputmodel\fR entry under OPTIONS
+lists additional information required by \fBsfpeaks\fR for each input model.
+
+.SH EXAMPLES
+
+Simple examples of finding the peaks of spherical harmonic functions:
+
+ datasynth -testfunc 1 -snr 16 -fixedmodq 6 60 250000 0.04 -voxels 10 | shfit -order 4 -fixedmodq 6 60 250000 0.04 | sfpeaks -inputmodel sh -order 4 -density 100 -searchradius 1.0 | double2txt
+ datasynth -testfunc 3 -snr 16 -fixedmodq 6 60 250000 0.04 -voxels 10 | shfit -order 4 -fixedmodq 6 60 250000 0.04 | sfpeaks -inputmodel sh -order 4 -density 100 -searchradius 1.0 | double2txt
+
+Above, we reduce the density and increase the search radius from the defaults since these
+are very smooth functions that require less sample points than the default settings.
+
+Finding the peaks of maximum entropy functions and outputting a maximum of four
+directions rather than the default 3:
+
+ datasynth -testfunc 1 -voxels 1 -schemefile test/bmx6.scheme -snr 16 | mesd -bmx 7 -filter SPIKE 1.4 | sfpeaks -inputmodel maxent -filter SPIKE 1.4 -bmx 7 -inputdatatype double -numpds 4 | double2txt
+
+Above we use the default density of 1000, which gives 6000 sample points. We can expect
+similar performance using the evenly distributed point set with size 4322 (even pointset
+1 is probably good enough):
+
+ datasynth -testfunc 1 -voxels 1 -schemefile test/bmx6.scheme -snr 16 | mesd -bmx 7 -filter SPIKE 1.4 | sfpeaks -inputmodel maxent -filter SPIKE 1.4 -bmx 7 -inputdatatype double -numpds 4 -pointset 2 | double2txt
+
+
+Finding the peaks of q-ball ODFs represented as sums of radial basis functions, we can
+reduce the density for these smooth functions as well:
+
+ qballmx -schemefile test/bmx7.scheme > BMX7_QBMX.Bdouble
+ datasynth -testfunc 1 -voxels 1 -schemefile test/bmx7.scheme -snr 16 | linrecon - test/bmx7.scheme BMX7_QBMX.Bdouble -normalize | sfpeaks -inputmodel rbf -rbfpointset 246 -density 100 | double2txt
+ 
+
+.SH OPTIONS
+.TP
+.B \-inputmodel <\fIstring\fR>
+Tells the program what type of functions are input.  Currently supported options are:
+
+sh - Spherical harmonic series. Specify the maximum order of the SH series with the
+\fB\-order\fR option if different from the default of 4.
+
+maxent - Maximum entropy representations output by mesd. The reconstruction directions
+passed to \fBmesd\fR must be specified. By default this is the same set of gradient
+directions (excluding zero gradients) in the scheme file, so specify \fB\-schemefile\fR
+unless \fB\-mepointset\fR was passed to \fBmesd\fR.
+
+rbf - Sums of radial basis functions. Specify the pointset with \fB\-rbfpointset\fR if
+different from the default, see qballmx(1).
+
+.TP
+.B \-numpds <\fIinteger\fR>
+The largest number of peak directions to output in each voxel.
+
+.TP
+.B \-noconsistencycheck
+Turns off the consistency check.  The output shows all consistencies as true.
+
+.TP
+.B \-searchradius <\fIdouble\fR>
+The search radius in the peak finding algorithm.  The default is 0.4 (see notes under
+option -density).
+
+.TP
+.B \-density <\fIinteger\fR>
+The number of randomly rotated icosahedra to use in constructing the set of points for
+random sampling in the peak finding algorithm. Default is 1000, which works well for very
+spiky maxent functions. For other types of function, it is reasonable to set the density
+much lower and increase the search radius slightly, which speeds up the computation.
+
+.TP
+.B \-pointset <\fIinteger\fR>
+Tells the program to sample using an evenly distributed set of points instead. The
+integer can be 0, 1, ..., 7. Index 0 gives 1082 points, 1 gives 1922, 2 gives 3002, 3
+gives 4322, 4 gives 5882, 5 gives 8672, 6 gives 12002, 7 gives 15872.
+
+.TP
+.B \-pdthresh <\fIdouble\fR>
+Base threshold on the actual peak direction strength divided by the mean of the function.
+The default is 1.0 (the peak must be equal or greater than the mean).
+
+.TP
+.B \-stdsfrommean <\fIdouble\fR>
+This is the number of standard deviations of the function to be added to the pdThresh  in
+the peak directions pruning.
+
+.TP
+.B \-mepointset <\fIinteger\fR>
+Use a set of directions other than those in the scheme file for the deconvolution kernel.
+ The number refers to the number of directions on the unit sphere. For example,
+"-mepointset 54" uses the directions in "camino/PointSets/Elec054.txt". Use this option
+only if you told \fBmesd\fR to use a custom set of directions with the same option.
+Otherwise, specify the scheme file with \fB\-schemefile\fR.
+
+
+Index of the point set camino/PointSets/Elec???.txt
+
+.SH "SEE ALSO"
+consfrac(1), mfrstats(1)
+
+.SH BUGS
+No known bugs

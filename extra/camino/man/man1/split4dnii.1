@@ -1,0 +1,52 @@
+.\" $Id$
+
+.TH split4dnii 1
+
+.SH NAME
+split4dnii \- Converts 4D or 5D NIFTI-1 files to 3D volumes.
+
+.SH SYNOPSIS
+\fBsplit4dnii\fR -inputfile <\fIfile\fR> -outputroot <\fIroot\fR>
+
+.SH DESCRIPTION
+
+Splits 4D or 5D NIFTI images into a series of numbered 3D volumes. All header information
+from the input volume is copied to the component volumes, except for the following
+fields:
+
+  dim[0]      - set to 3
+  intent_code - set to NIFTI_INTENT_NONE
+  intent_name - set to "comp XXXX" where XXXX is the number of the component.
+
+The output file extension will be copied from the input (.nii or .nii.gz).
+
+Optionally, if the input is DWI with an accompanying scheme file, the output can include a CSV file 
+containing basic gradient information for the 3D volumes.
+
+
+.SH EXAMPLES
+
+Split a tensor volume into 6 component images.
+
+split4dnii -inputfile dt.nii.gz -outputroot dtcomp_
+
+produces dtcomp_000[1-6].nii.gz
+
+.SH OPTIONS
+
+.TP
+.B \-outputroot\fR <\fIroot\fR>
+Prepended onto output file names. Files are numbered \fIroot\fR0001 through \fIroot\fRN, 
+where there are N components in the volume.
+
+.TP
+.B \-schemefile\fR <\fIfile\fR>
+Also produces a CSV file listing gradient information (direction and b-value) for each 3D volume.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+shredder(1)
+
+.SH BUGS

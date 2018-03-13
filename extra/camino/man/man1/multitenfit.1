@@ -1,0 +1,106 @@
+.\" $Id: multitenfit.1,v 1.4 2006/04/21 12:08:11 ucacmgh Exp $
+
+.TH multitenfit 1
+
+.SH NAME
+multitenfit \- Fits one or more diffusion tensors to the data in each voxel according to
+a voxel classification map to specify the number of tensors to fit in each voxel.
+
+.SH SYNOPSIS
+.B multitenfit
+-schemefile <scheme file> -voxclassmap <voxel classification> [-options]
+
+.SH DESCRIPTION
+Reads diffusion MRI data, acquired using the acquisition scheme detailed in the scheme
+file, from the data file. The data file stores the diffusion MRI data in voxel order with
+the measurements stored as big-endian four-byte floats and ordered as in the scheme file.
+See modelfit(1) for the format of the data file and scheme file. The program also reads a
+voxel classification map, which contains an integer label for each voxel. The order of
+the voxels in the classification must be the same as in the input data file.
+
+The program has a list of model identity codes, or "inversion indices" see modelfit(1)
+for a list; one for each possible class in the voxel classification. If the
+classification of a voxel is i, the program uses the inversion indexed by the i-th
+element of the list for the data in that voxel. If the voxel classification is greater
+than the length of the list, the program uses the inversion indexed by the last element
+of the list. By default, the list of indices is {1, 1, 1, 1, 31}, so that voxel
+classifications 0, 1, 2 and 3 all imply fitting a single tensor by linear least-squares
+to the log measurements and a classification of 4 or above implies inversion 31, which is
+two positive-definite tensors. The standard output format of voxelclassify(1), which is 0
+for isotropic, 2 for anisotropic Gaussian and 4 for non-Gaussian, motivates the default
+list. With this voxel classification, elements 1 and 3 (counting from zero) of the list
+are redundant.
+
+The program outputs the results, in voxel order and as big-endian eight-byte doubles, to
+the standard output. The output format is: [exitcode, ln(S(0)), m, a_1, D_1xx, D_1xy,
+D_1xz, D_1yy, D_1yz, D_1zz, a_2, D_2xx, D_2xy, D_2xz, D_2yy, D_2yz, D_2zz, ..., a_n,
+D_nxx, D_nxy, D_nxz, D_nyy, D_nyz, D_nzz], where n is the maximum number of tensors in
+each voxel (which can be set using the command line option -maxcomponents) and m is the
+actual number fitted and output in this voxel. If n > m, diffusion tensors above index m
+contain all zeros and their mixing parameters are zero. An exit code of zero indicates no
+problems. For a list of other exit codes, see modelfit(1). The entry S(0) is an estimate
+of the signal at q=0.
+
+.SH EXAMPLES
+Classify the voxels using voxelclassify and use the output for fitting multiple tensors
+in each voxel according to that classification, ie, one tensor where the voxel
+classification says isotropic or anisotropic Gaussian, two tensors where it says
+non-Gaussian:
+
+  voxelclassify -schemefile A.scheme -ftest 1.0E-20 1.0E-6 1.0E-6 < SubjectA.Bfloat > A_VC.Bint
+
+  multitenfit -schemefile A.scheme -voxclassmap A_VC.Bint < SubjectA.Bfloat > MultiTensorA.Bdouble
+
+Fit tensors using non-linear fitting in isotropic and anisotropic Gaussian voxels and two
+cylindrically symmetric positive-definite in non-Gaussian voxels:
+
+  multitenfit -schemefile A.scheme -voxclassmap A_VC.Bint -classifiedmodels 5 2 2 2 2 11 < SubjectA.Bfloat > MultiTensorA.Bdouble
+
+Use a different voxel classification which contains zero in voxels with no clear fibre
+orientations, one in voxels with one fibre, two in voxels with two fibres and three in
+voxels with three fibres. With zero or one fibre, just fit the diffusion tensor; with two
+fibres fit a pair of cylindrically symmetric diffusion tensors; with three fit three
+cylindrically symmetric tensors:
+
+  multitenfit -schemefile A.scheme -voxclassmap A_VC2.Bint -classifiedmodels 4 2 2 11 211 < SubjectA.Bfloat > MultiTensorA.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-schemefile <scheme file>
+Scheme file, see camino(1).
+
+.TP
+.B \-voxclassmap <voxel classification file>
+Specify the file containing the voxel classification map.
+
+.TP
+.B \-classifiedmodels <number of classes> <list of inversion indices>
+Specifies the inversion to use for each voxel class in the voxel classification map. For
+voxels with label i in the voxel classification map, the program uses the inversion with
+index at position i in the list of inversion indices. The first number after this command
+line flag specifies the length of the list. The subsequent list of inversion indices must
+contain that number of elements. The default is {1, 1, 1, 1, 31}, which is compatible
+with the output of voxelclassify.
+
+The new text model codes (see modelfit(1)) may also be used: {ldt, ldt, ldt, ldt, pospos}
+is the same as {1, 1, 1, 1, 31}. If a text code is used for a two- or three-tensor model,
+the single-tensor initialization is the first model in the list, so {1, pospos_eq} is the
+same as {1, 21} and {2, pospos_eq} is the same as {2, 22}, but {2, 21} must be specified
+numerically.
+
+.TP
+.B \-maxcomponents <number of output components>
+Specifies the number of components (ie diffusion tensors) to output in each voxel.
+Normally, this number is the same as the largest number of diffusion tensors fit in any
+of the inversions in the list of inversion indices. The default is two.
+
+multitenfit also takes other standard command line options listed in modelfit(1).
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), dtfit(1), twotenfit(1), threetenfit(1), fa(1), trd(1), shfit(1), shanis(1),
+voxelclassify(1)
+
+.SH BUGS

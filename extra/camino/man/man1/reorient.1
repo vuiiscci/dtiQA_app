@@ -1,0 +1,133 @@
+.\" $Id: reorient.1,v 1.1 2006/05/24 09:22:43 ucacdxa Exp $
+
+.TH reorient 1
+
+.SH NAME
+reorient \- Reorients diffusion tensors for consistency with an image transformation.
+
+.SH SYNOPSIS
+.B reorient -trans <transformation>
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+Reads diffusion tensor files (single or multiple) and an affine transformation, in the
+format output by FSL's flirt program, or a non-linear warp expressed as a displacement
+field. The displacement field can be either three separate analyze files for the x, y and
+z components or one nifti file in the format output by FSL's fnirt. The program outputs
+diffusion tensors reoriented for consistency with the transformation using either the
+preservation of principal directions (PPD) algorithm or finite strain (FS) reorientation;
+Alexander et al, IEEE Trans. Medical Imaging 20(11) 1131-1139 2001 describes both
+methods. By default the program reads and writes to and from the standard input and
+output streams. The usual camino command line options specify input and output types and
+redirections.
+
+Note that reorient does not warp the image, but just rotates diffusion tensors and leaves
+them in the same position. To warp the image, use another program such as FSL's flirt
+program.
+
+.SH EXAMPLES
+Reorient the diffusion tensors in DT image SubjectA_DT_S30.Bdouble using the PPD
+algorithm according to the transformation in Shear30.txt:
+
+reorient -trans Shear30.txt < SubjectA_DT_S30.Bdouble > SubjectA_DT_S30_PPD.Bdouble
+
+Now using FS instead:
+
+reorient -trans Shear30.txt -reorientation fs < SubjectA_DT_S30.Bdouble >
+SubjectA_DT_S30_FS.Bdouble
+
+We recommend using PPD always. FS is slightly faster, but less precise.
+
+
+To perform reorientation for a non-linear transformation, the command format is similar:
+
+reorient -trans Warp.nii -datadims 128 128 60 -voxeldims 1.7 1.7 2.3 <
+SubjectA_DT_Warp.Bdouble > SubjectA_DT_WarpPPD.Bdouble
+
+We need to specify the image and voxel size on the command line for non-linear
+transformations. The above is tested only for nifti warp files output from FSL's fnirt
+using the --fout option. If the transformation is in three separate analyze images, the
+command is:
+
+reorient -xtrans WarpX -ytrans WarpY -ztrans WarpZ -datadims 128 128 60 -voxeldims 1.7
+1.7 2.3 < SubjectA_DT_Warp.Bdouble > SubjectA_DT_WarpPPD.Bdouble
+
+
+
+
+Here is an example using flirt to warp images and reorient to do the tensor
+reorientation. Suppose we have DT images from two subjects, SubjectA and SubjectB, that
+we want to align. First create FA images and use flirt to compute the transformation
+between the images by registering FA maps:
+
+ # Make FA maps
+ fa < SubjectA_DT.Bdouble > SubjectA_FA.Bdouble
+ fa < SubjectB_DT.Bdouble > SubjectB_FA.Bdouble
+ 
+ # Convert to analyze format
+ cp SubjectA_FA.Bdouble SubjectA_FA.img
+ analyzeheader -voxeldims 1.7 1.7 2.5 -datadims 128 128 60 -datatype double > SubjectA_FA.hdr
+ cp SubjectB_FA.Bdouble SubjectB_FA.img
+ analyzeheader -voxeldims 1.7 1.7 2.5 -datadims 128 128 60 -datatype double > SubjectB_FA.hdr
+ 
+ # Run the registration
+ flirt -in /tmp/SubjectA_FA.img -ref SubjectB_FA.img -out SubjectA_FA_Warped.img -omat SASB_Affine.txt
+
+Now use flirt to warp each component of the diffusion tensor image SubjectA_DT.Bdouble
+separately using the transformation SASB_Affine.txt.
+
+ for ((i=0; i<8; i=i+1)); do
+
+    # Create volume of i-th component in analyze format
+    shredder $((i*8)) 8 56 < SubjectA_DT.Bdouble > SubjectA_DT_Comp${i}.img;
+    analyzeheader -voxeldims 1.7 1.7 2.5 -datadims 128 128 60 -datatype double > SubjectA_DT_Comp${i}.hdr
+
+    # Transform.  Note that the first component contains exit codes, so
+    # must be transformed using nearest neighbour interpolation. The others
+    # are transformed using linear interpolation.
+    if [ $i == 0 ]; then
+        flirt -in SubjectA_DT_Comp${i}.img -applyxfm -init SASB_Affine.txt -out SubjectA_DT_Comp${i}_Warped.img -ref SubjectB_FA.img -interp nearestneighbour
+    else
+        flirt -in SubjectA_DT_Comp${i}.img -applyxfm -init /tmp/SASB_Affine.txt -out SubjectA_DT_Comp${i}_Warped.img -ref SubjectB_FA.img
+    fi
+
+ done
+
+ # Recombine into a single DT file in camino format.  On a linux machine,
+ # flirt outputs results with little-endian byte ordering, which we need
+ # to reverse.
+ cat SubjectA_DT_Comp?_Warped.img | shredder 0 -8 0 | scanner2voxel -voxels 983040 -components 8 -inputdatatype double -outputdatatype double > SubjectA_DT_WarpedNR.Bdouble
+
+ # Now reorient the tensors using PPD
+ reorient -trans /tmp/SASB_Affine.txt < SubjectA_DT_WarpedNR.Bdouble > SubjectA_DT_WarpedPPD.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-trans <Transformation File>
+Specifies the file containing the transformation.  It may be a text file containing an
+affine transformation. In that case, the format is that output by FSL's flirt program,
+which is a text file containing a 4x4 affine transformation matrix in the following
+format:
+
+ Lxx Lxy Lxz Tx
+ Lyx Lyy Lyz Ty
+ Lzx Lzy Lzz Tz
+ 0   0   0   1
+
+Or is may be a nifti file containing three components, x, y and z, of a displacement
+field. The format is that output by FSL's fnirt program using the --fout option.
+
+.TP
+.B \-xtrans, \-ytrans, \-ztrans <Transformation File>
+Specifies three components of a displacement field in separate analyze images. Equivalent
+to using -trans with a nifti file.
+
+.TP
+.B \-reorientation <strategy>
+Specifies the reorientation strategy.  The program currently supports options fs or ppd;
+ppd is the default.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH BUGS

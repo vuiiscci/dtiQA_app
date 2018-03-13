@@ -1,0 +1,48 @@
+.\" $Id: long2txt.1,v 1.2 2006/04/20 12:54:35 ucacdxa Exp $
+
+.TH long2txt 1
+
+.SH NAME
+long2txt \- Converts big-endian binary long integer data to text.
+
+.SH SYNOPSIS
+.B long2txt [\fB-linenum\fR] [\fB-components\fR <\fIN\fR>]
+
+.SH DESCRIPTION
+Reads big-endian binary long integer data from the standard input and outputs each long
+as text to the standard output.
+
+.SH EXAMPLES
+
+Output as text the long integers stored as binary data in test.Blong:
+
+cat test.Blong | long2txt
+
+The output has the form:
+
+  4632937379169042432
+ -4631474333280360832
+ -4600255576996874147
+ -4599031103289244867
+  4617313686610146377
+ :
+
+.SH OPTIONS
+
+.TP
+.B \-linenum
+Print line numbers in output.
+
+.TP
+.B \-components\fR <\fIN\fR>
+Assume output is voxel data with \fIN\fR components. Output will be annotated with voxel
+number and component number.
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+byte2txt(1), char2txt(1), short2txt(1), int2txt(1), double2txt(1), float2txt(1),
+shredder(1).
+
+.SH BUGS

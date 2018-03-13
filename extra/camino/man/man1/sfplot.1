@@ -1,0 +1,369 @@
+.\" $Id: sfplot.1,v 1.1 2008/03/20 13:32:11 ucacdxa Exp $
+
+.TH sfplot 1
+
+.SH NAME
+sfplot \- Plots the output of various diffusion MRI reconstruction algorithms over slices
+through data sets.
+
+.SH SYNOPSIS
+.B sfplot -xsize <xsize> -ysize <ysize> -inputmodel <datatype>
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+The sfplot program creates various kinds of images mapping the output of various
+diffusion MRI reconstruction algorithms within each voxel over slices through data sets.
+For example, the program will create images showing the PAS or q-ball ODF in each voxel
+of a slice or images showing the diffusion ellipsoid in each voxel.
+
+The program creates a minifigure for each voxel in the image that shows the
+reconstruction for that voxel and then puts all the minifigures together into a full
+slice image. To create the minifigure for a particular voxel, the program uses a set of
+evenly distributed points on the sphere to create an icon for the reconstruction in the
+voxel. For spherical functions such as the PAS or q-ball ODF, the program scales each
+point x in the point set by f(x) to obtain a list of scaled points p_i = x_i f(x_i), i =
+1, ..., N, where N is the size of the point set. The program then scales the elements of
+the p_i to the range [-1, 1] by normalizing by the largest f(x_i) to obtain q_i =
+p_i/max_i(f(x_i)). The program then projects each q_i into the plane of the image and
+draws a point at the corresponding pixel in the minifigure assuming the corners of the
+minifig correspond to the q_i coordinates [+/-1, +/-1] so the centre of the figure
+corresponds to projected point [0, 0]. By default the minifigures are 15x15 pixels and
+separated by a 1 pixel border top and side, the size and separation can be changed to
+increase or decrease the image resolution using the -minifigsize and -minifigseparation
+options.
+
+To plot diffusion ellipsoids, each point x_i is scaled to D x_i, where D is the diffusion
+tensor. To normalize to the range of the minifigure, we use a canonical diffusivity of
+1.5E-9 m^2/s and normalize all D x_i by that diffusivity. In regions of high diffusivity,
+this means that many projected points fall outside the minifigure. The minifigure thus
+appears full and square in shape, but visually the impression is fairly clear. The
+canonical diffusivity can be changed using the -maxd option.
+
+By default, the image background is white and points on each icon are plotted black. The
+-iconcol option allows the user to specify a different colour for the icons; specifying
+-iconcol makes the background black. With the -dircolcode option, the colour of each
+plotted point reflects its orientation using the standard colour scheme of Pajevic and
+Pierpaoli (MRM 42(3) 526--540 1999) where red indicates left-right, green indicates
+posterior-anterior and blue indicates inferior-superior. The -backdrop option tells the
+program to use a grayscale image, such as a fractional anisotropy map, as background for
+the icon array.
+
+The output images are raw bitmaps, ie, either .gray or .rgb format images. By default the
+output is .gray so each pixel contains a single scalar intensity value. Various command
+line options, -iconcol, -dircolcode, -backdrop, cause the icons to be in colour and so
+the output is then .rgb with three intensity values per pixel. You can convert these
+images to more economical formats using standard image display and processing software
+such as ImageMagick or PhotoShop.
+
+.SH EXAMPLES
+
+Simple plots of reconstructions from synthetic data
+===================================================
+
+Create 256 voxels worth of synthetic data from a test function with a single dominant
+direction.
+
+Create an example schemefile:
+
+cd camino PointSets/PointSetToScheme PointSets/Elec061.txt 200000 3 0.0223 > A.scheme
+
+Create the synthetic data file:
+
+datasynth -testfunc 1 -voxels 16 -snr 20 -schemefile A.scheme > test.Bfloat
+
+
+
+Fit the diffusion tensor and create a plot showing the diffusion ellipsoids in a 4x4
+array:
+
+dtfit test.Bfloat A.scheme | sfplot -xsize 4 -ysize 4 -inputmodel dt > test.gray
+
+Show the image using image magick:
+
+display -size 64x64 -depth 8 test.gray
+
+Note that the size of the output image is 64x64 pixels, since each minifig is 15x15 with
+a 1 pixel border on one size so each voxel of the input data takes up a 16x16 square in
+the image. The data set is a 4x4 voxel array, so the overall size of the output image is
+a 4x4 array of 16x16 pixel squares: 64x64 pixels in total.
+
+Convert to PNG format using image magick:
+
+convert -size 64x64 -depth 8 test.gray test.png
+
+Try plotting the icons in red instead and increase the resolution by increasing the size
+of the minifigures:
+
+dtfit test.Bfloat A.scheme | sfplot -xsize 4 -ysize 4 -inputmodel dt -iconcol 255 0 0
+-minifigsize 30 30 -minifigseparation 2 2 > test.rgb
+
+The command above outputs a 128x128 pixel image.
+
+
+Compute the PAS in each voxel:
+
+cat test.Bfloat | mesd -filter PAS 1.4 -schemefile A.scheme > test_PAS.Bdouble
+
+Plot the PAS in each voxel:
+
+sfplot -xsize 4 -ysize 4 -inputmodel maxent -filter PAS 1.4 -mepointset 61 <
+/tmp/test_PAS.Bdouble > /tmp/test_PAS.gray
+
+We need to know the points in the schemefile for the maxent representation. The
+-mepointset option says that the points come from the directions in the point set
+PointSets/Elec061.txt.
+
+Notice that the image the command above generates is quite poor quality, because the
+default point set is too small to produce well defined representations of the very spiky
+PAS functions. Let\'s increase the image resolution and use a larger point set to get
+better definition in the image:
+
+sfplot -xsize 4 -ysize 4 -inputmodel maxent -filter PAS 1.4 -mepointset 61 -minifigsize
+60 60 -minifigseparation 4 4 -pointset 4 < /tmp/test_PAS.Bdouble > /tmp/test_PAS.gray
+
+
+Compute the q-ball ODF in each voxel:
+
+qballmx -schemefile A.scheme > A_QBMX.Bdouble linrecon test.Bfloat A.scheme
+A_QBMX.Bdouble -normalize > test_QBALL.Bdouble
+
+Plot the ODF in each voxel:
+
+sfplot -inputfile test_QBALL.Bdouble -xsize 4 -ysize 4 -inputmodel rbf -rbfpointset 246
+-rbfsigma 0.2618 > test_QBALL.gray
+
+Use higher resolution and emphasize the peaks by power scaling:
+
+sfplot -inputfile test_QBALL.Bdouble -xsize 4 -ysize 4 -inputmodel rbf -rbfpointset 246
+-rbfsigma 0.2618 -minifigsize 60 60 -minifigseparation 4 4 -powerscale 5 >
+test_QBALL.gray
+
+Use max-min scaling to emphasize peaks in a different way:
+
+sfplot -inputfile test_QBALL.Bdouble -xsize 4 -ysize 4 -inputmodel rbf -rbfpointset 246
+-rbfsigma 0.2618 -minifigsize 60 60 -minifigseparation 4 4 -minmaxnorm > test_QBALL.gray
+
+
+sfplot also works with multiple tensor models, eg:
+
+datasynth -testfunc 3 -voxels 16 -snr 20 -schemefile A.scheme > test.Bfloat
+
+twotenfit test.Bfloat A.scheme | sfplot -xsize 4 -ysize 4 -inputmodel twotensor >
+test.gray
+
+display -size 64x64 -depth 8 test.gray
+
+
+
+Plot some reconstructions from scanner data ===========================================
+
+Suppose we have a data set of size 128x128x70 voxels called A.Bfloat acquired using the
+scheme in A.scheme. Fit the diffusion tensor:
+
+dtfit A.Bfloat A.scheme > A_DT.Bdouble
+
+Create a plot of the 35th axial slice:
+
+shredder $((128*128*34*8*8)) $((128*128*8*8)) $((128*128*70*8)) < A_DT.Bdouble | sfplot
+-xsize 128 -ysize 128 -inputmodel dt > A_SLICE35_DT.gray
+
+Note the use of shredder above to extract just the 35th axial slice from the full DT data
+file. The size of one slice is 128*128*8*8 bytes (128x128 voxels, 8 scalars per voxel,
+each scalar is an 8-byte double).
+
+Create a directionally colour coded plot with the FA as background:
+
+shredder $((128*128*34*8*8)) $((128*128*8*8)) $((128*128*70*8*8)) < A_DT.Bdouble | fa >
+A_SLICE35_FA.Bdouble shredder $((128*128*34*8*8)) $((128*128*8*8)) $((128*128*70*8*8)) <
+A_DT.Bdouble | sfplot -xsize 128 -ysize 128 -inputmodel dt -dircolcode -backdrop
+A_SLICE35_FA.Bdouble > A_SLICE35_DT.rgb
+
+
+Fit the PAS to the whole data set:
+
+mesd -filter PAS 1.4 A.scheme < A.Bfloat > A_PAS.Bdouble
+
+(Note: we would normally perform the operation above using parallel processing, as it
+takes a very long time on one processor.) The PAS output contains 64 scalars per voxel.
+We increase the image resolution and the pointset size to see the PAS functions clearly.
+
+shredder $((128*128*34*64*8)) $((128*128*64*8)) $((128*128*70*64*8)) < A_PAS.Bdouble |
+sfplot -xsize 128 -ysize 128 -inputmodel maxent -mepointset 61 -filter PAS 1.4
+-dircolcode -backdrop A_SLICE35_FA.Bdouble -minifigsize 30 30 -minifigseparation 2 2
+-pointset 2 > A_SLICE35_PAS.rgb
+
+Now let\'s create a plot over a coronal slice. Suppose the voxels are anisotropic with
+size 1.3x1.3x2.0. We keep the minifigsize at 30 30, but change the minifigseparation to 2
+19 to make the rectangle containing each icon have size 32x49, which is roughly in
+proportion to 1.3x2.0. Note how we use shredder to pick out the same line in each axial
+slice. We plot the 60th coronal slice.
+
+shredder $((128*59*64*8)) $((128*64*8)) $((128*127*64*8)) < A_PAS.Bdouble | sfplot -xsize
+70 -ysize 128 -inputmodel maxent -mepointset 61 -filter PAS 1.4 -dircolcode -minifigsize
+30 30 -minifigseparation 2 19 -pointset 2 -projection 3 2 > A_CorSLICE60_PAS.rgb
+
+Note that the dimension of the image changes as the data set has only 70 slices. Here
+-xsize refers to the number of rows of icons in the image, ie, the length of the vertical
+image axis. Also, we are plotting a coronal slice and want to show the projections of the
+spherical functions onto the plane of the image, which is the yz plane. The -projection
+option specifies the two axes of the projection plane; 3 specifies the z-axis, 2 the
+x-axis; the first index is the image x-axis, the vertical image axis, which we want to
+correspond to the z-axis of the data. You may need to change the ordering of the colours
+to get the right colours corresponding to the right directions. See the -colcode option,
+which lets you do this.
+
+We can plot a sagittal slice in a similar way:
+
+shredder $((59*64*8)) $((64*8)) $((127*64*8)) < A_PAS.Bdouble | sfplot -xsize 70 -ysize
+128 -inputmodel maxent -mepointset 61 -filter PAS 1.4 -dircolcode -minifigsize 30 30
+-minifigseparation 2 19 -pointset 2 -projection 3 1 > A_SagSLICE60_PAS.rgb
+
+.SH OPTIONS
+.TP
+.B \-inputfile\fR <\fIName of input file\fR>
+Specifies the name of the input file, ie, the file containing the output of the
+reconstruction algorithm. If no input file is specified, the program reads from the
+standard input stream.
+
+.TP
+.B \-inputmodel\fR <\fIsh|rbf|maxent|dt|twotensor|threetensor|multitensor\fR>
+Tells the program what type of functions are input.  Currently supported options are:
+
+sh - Spherical harmonic series. (Must specify -order.)
+
+maxent - Maximum entropy representations output by mesd. (Must specify -filter and
+-mepointset.)
+
+rbf - Sums of radial basis functions. (Must specify rbf parameters, eg -rbfsigma, and
+-rbfpointset.)
+
+dt - Diffusion tensors (output of dtfit).
+
+twotensor|threetensor|multitensor - Multiple diffusion tensor models (see modelfit(1).
+
+.TP
+.B \-xsize\fR <\fINumber of voxels in x-direction\fR>
+
+.TP
+.B \-ysize\fR <\fINumber of voxels in y-direction\fR>
+
+.TP
+.B \-pointset\fR <\fIPoint set index\fR>
+Specifies the size of the point set used to create the icon in each minifigure. Six main
+point sets are available:
+
+ Index 0: 1082 points
+ Index 1: 1922 points
+ Index 2: 4322 points
+ Index 3: 8672 points
+ Index 4: 15872 points
+ Index 5: 32672 points
+
+Larger points sets produce more defined output icons, particularly for very spiky
+functions such as those produced by PASMRI or MESD, but increase computation time
+linearly in the number of points. For smoother functions, smaller point sets can produce
+visually more pleasing results. The default is point set 0. A smaller point set (120
+points) is also available using the -coarse option, which is useful for testing.
+
+.TP
+.B \-projection\fR <\fIaxis1 axis2\fR>
+Specifies the plane of projection of the spherical functions for each icon. axis1 and
+axis2 are integers in the set {-3, -2, -1, 1, 2, 3}. 1 indicates the y-axis, 2 the x-axis
+and 3 the z-axis. Thus, to plot projections of each function onto the xy plane, typical
+for plots of axial slices, use -projection 1 2 (the default). For coronal slices, we
+typically wish to project the functions onto the yz plane (the image plane) so use
+-projection 2 3 (or 3 2); sagittal images show the xz plane so -projection 1 3 (or 3 1)
+is usual. Negative integers negate the direction of the axis; thus -projection -1 2 plots
+projections onto the xy plane, but negates the direction of the x-axis, ie, reflects each
+function about the yz plane. Choosing the right projection often requires a bit of
+thought and checking. Experiment more quickly using the -coarse option.
+
+.TP
+.B \-coarse\fR
+Use a small point set of 120 points only for each icon.  Useful for testing as the
+computation is very quick using this small point set, but the image quality is low.
+
+.TP
+.B \-minifigsize\fR <\fIxmfsize ymfsize\fR>
+Specifies the numbers of pixels in the x and y directions in each minifigure. Default
+xmfsize = ymfsize = 15.
+
+.TP
+.B \-minifigseparation\fR <\fIxsep ysep\fR>
+Specifies the size of a gap between neighbouring minifigures in the big picture. Each
+voxel in the input data corresponds to a rectangle in the big picture of size
+(xmfsize+xsep)x(ymfsize+ysep) pixels. Default xsep = ysep = 1.
+
+.TP
+.B \-box\fR <\fIxmin xmax ymin ymax\fR>
+Specifies the bounds of a box in the input data to be displayed in the plot. The output
+image only maps the icons within the specified box.
+
+.TP
+.B \-minmaxnorm\fR
+Changes the normalization of the scaled x_i to emphasize peaks in a spherical function.
+(Note: this option has no effect if plotting diffusion ellipsoids.) This normalization
+scales all the points so that the smallest |q_i| is zero and the largest is one, as in
+Tuch MRM 52(6) 1358--1372 2004.
+
+.TP
+.B \-iconcol\fR <\fIR G B\fR>
+Specifies the colour for the icons to the colour vector [R G B]. (Note: -dircolcode
+overrides this option.)
+
+.TP
+.B \-dircolcode\fR
+Use directional colour coding.	The colour of each point drawn in the minifigures
+reflects its orientation and the intensity reflects the magnitude f(x). Thus the colour
+of the point drawn for q_i has RGB vector [|q_i1|, |q_i2|, |q_i3|]*255.
+
+.TP
+.B \-colcode R G B\fR
+Specifies which direction corresponds to which colour.	By default, red indicates the
+left-right direction, green anterior-posterior and blue inferior-superior and these
+directions are assumed to be along x, y and z, respectively. This option allows you to
+specify alternative encodings. Numbering the axes x = 1, y = 2 and z = 3. We specify
+which axis corresponds to which colour. Thus, if we write -colcode 1 2 3, x is red, y is
+green and z is blue, like the default. However, if we write -colcode 1 3 2, x remains
+red, but y now becomes blue and z green. Most often this option allows us to fix
+miscolouring from misspecification of the axes. It may require some fiddling of the
+choices to get the right combination; all combinations are possible, particularly in
+conjunction with the -projection option.
+
+.TP
+.B \-backdrop\fR <\fIBackdrop data file\fR>
+Specify a grey scale image as background.  The program assumes the backdrop data file
+contains xsizexysize scalar values stored as big-endian doubles. The program scales the
+intensities in the backdrop file to the full byte-range [0, 255] when creating the output
+plot. The program interpolates the backdrop image using either bilinear or nearest
+neighbour interpolation, see -backdropinterp.
+
+.TP
+.B \-backdropinterp\fR <\fIbilinear|nn\fR>
+Specifies the kind of interpolation to use for the backdrop image. The default is
+bilinear. The other option (nn) is nearest neighbour.
+
+.TP
+.B \-maxd\fR <\fId\fR>
+Scaling for diffusion tensors.	Only has an effect when inputmodel is "dt". Specifies the
+canonical diffusivity for scaling the Dx_i when plotting diffusion ellipsoids. Default is
+1.5E-9. Set higher to make diffusion ellipsoids smaller and reduce the number of points
+that fall outside the minifig. Set higher to see the shape of smaller diffusion
+ellipsoids more clearly.
+
+.TP
+.B \-powerscale\fR <\fIgamma\fR>
+Raises each f(x_i) to the power gamma to emphasise (gamma > 1) or deemphasize (gamma < 1)
+peaks in spherical functions. Has no effect for inputmodel "dt".
+
+.TP
+.B \-interval\fR <\fIi\fR>
+Plot only every i-th voxel of every i-th row.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+dtfit(1), twotenfit(1), threetenfit(1), datasynth(1)
+
+.SH BUGS

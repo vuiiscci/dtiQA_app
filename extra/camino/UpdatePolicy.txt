@@ -1,0 +1,298 @@
+This document provides policies and guidelines for updating and adding
+to Camino.
+
+
+General Guidelines
+------------------
+
+G1.  The repository must always compile.
+
+Before you commit any changes to the svn repository, check that
+everything compiles correctly.  To check this, first remove all
+compiled code and then recompile by running
+
+$ make clean
+$ make
+
+from the camino directory.
+
+G2.  The repository code must always pass the JUnit tests.
+
+To run the junit tests, you need first to compile them by running
+
+$ make clean
+$ make
+
+from the camino/test directory.
+
+To run the tests, run
+
+% runtest.sh
+
+from camino/test.  The output should finish with "OK (X tests)", where
+X is the number of tests it ran.  If any test fails, the script will
+report it.  Do not commit code to the repository while runtest.sh
+still reports failures.  If you find errors from code that you have
+not written, report them to the camino mailing list immediately.
+
+G3.  The repository code must always run ScriptTest and produce output
+     that matches the SciptTest output run on unmodified code. 
+
+ScriptTest is a convenient way to run application code and test the user 
+interface. It is not a substitute for modular code tests in JUnit. The
+output of ScriptTest is machine dependent, so you need to do the following:
+
+1. Get a clean copy of the code base you are modifying. It's convenient to keep
+a testing copy of Camino separately, that can be updated via svn (but not modified)
+for testing. 
+
+2. Run the tests (
+ 
+ $ cd camino_testing
+ $ test/ScriptTest > /some/place/ScriptTest.out.${HOSTNAME%%.*} 
+
+where your hostname is something like "machine.subdomain.domain.tld", and the test
+output writes to ScriptTest.out.machine. You'll want to keep this output somewhere.
+
+3. Make your modifications to Camino
+
+4. Run the tests on your modified code 
+
+ $ cd camino
+ $ test/ScriptTest > /tmp/ScriptTest.out.mods
+
+5. Compare the test output with what you think it should be:
+
+ $ diff /tmp/ScriptTest.out.mods /some/place/ScriptTest.out.${HOSTNAME%%.*} 
+
+If everything is OK, you will get no output.  If you get some output,
+something has gone wrong and you need to find out what.
+
+If you figure out that your ScriptTest.out diffs are correct (eg you added a test and that's
+the only difference), then you should commit it along with your code modifications. 
+This lets the nightly build machine know that it should expect changes in ITS ScriptTest.out.
+
+Just to emphasise: When you commit ScriptTest.out.machine in r1234, you are telling everyone 
+else that you have changed ScriptTest and that you have verified the results. Other developers
+pretty much have to trust you on this and will work from ScriptTest.out.theirmachine for r1234
+to test their development. So please be careful about committing a ScriptTest.out and properly
+verify all differences are accounted for. 
+
+
+ScriptTest and mixed revisions
+------------------------------
+
+Subversion permits mixed revisions, that is it doesn't force you to have the same version
+of every file in the code base. This is nice for the most part, but it can cause problems 
+with ScriptTest. ScriptTest output may depend on all of the code in your local copy, which 
+can be a mixture of the head revision, local modifications, and older revisions from the 
+repository. 
+
+There's no easy solution to this except for proper manual quality control when committing
+a ScriptTest.out. When you commit r1234 containing a modified ScriptTest.out you should be 
+confident that you or someone else with an identical machine could check out r1234 and 
+reproduce the ScriptTest results.
+
+
+
+Adapting existing Camino programs
+---------------------------------
+
+This is a simple protocol to follow if you are extending or fixing
+programs that are already in Camino.  It will make sure you don't
+break anything else while making the change and that future changes
+don't break what you have just added.
+
+A1.  Check out a fresh copy of the repository.
+
+A2.  Run the JUnit test and ScriptTest to check that everything is in
+     order before you start.
+
+A3.  Make your changes and additions and check that they work.
+
+A4.  Check that everything still compiles, by cleaning your version of
+     the repository and recompiling, as in G1 above.
+
+A5.  Check that the JUnit tests still work, as in G2 above.
+
+A6.  Check that ScriptTest still gives the right output, as in G3
+     above.
+
+A7.  Add appropriate new JUnit tests and ScriptTests.
+
+JUnit tests monitor individual methods and calculations within the
+Camino code base to ensure they don't get broken by changes elsewhere
+in the code.  Each class has its own set of JUnit tests that compare
+the output of individual methods within the class to what the output
+of those methods should be.  If you have added new classes or
+non-trivial functions, you should add JUnit tests so that when others
+add code later that might use or adapt your classes, they can check
+they have not broken anything.
+
+General tips: keep the tests as simple as possible.  Try to identify
+the minimum set of tests you would need to run to check that the new
+methods you have written work under all conditions they are likely to
+meet.  A typical test might create a couple of instances of the class
+and call each public interface method once on each instance.  For a
+simple example, have a look at the JUnit test class for the diffusion
+tensor class misc/DT.java.  The JUnit test class is in
+test/test/misc/TestDT.java.
+
+JUnit tests should be our first line of defence against bugs. A unit 
+test failure will tell you exactly which assertion failed and in which
+class, which is much more specific than you can get from ScriptTest.
+JUnit tests are also quicker to run because there is not much I/O and
+JVM overhead. 
+
+A good set of tests will avoid repetition but will make an honest attempt
+to find expose errors. As an example, consider the following bug: in 
+multi-fiber tractography we must decide which fiber direction to follow 
+given two or more choices in a voxel, which are stored in array 
+trackingVecs. The correct thing to do is to find the direction with
+minimal curvature of the path. Howevers, FACT trackerd would always return 
+trackingVecs[0] and this was not detected because the testing example 
+happened to work if you chose trackingVecs[0]. Simply tracking through 
+the fiber crossing in both directions would have found this bug.
+
+ScriptTest runs higher level consistency checks than JUnit.  The idea
+is to check that Camino programs (rather than classes and methods)
+still give the same output given the same input after you have made
+changes to the Camino code base.  ScriptTest is a collection of Camino
+commands that run the wrapper scripts in camino/bin on small and
+simple test data sets.  If you add new options to some existing
+programs, you should probably add new lines to ScriptTest that run the
+programs you have adapted using the new functionality you have added.
+
+General tips: as with the JUnit tests, keep it simple.  Keep the test
+data sets small to keep run times down and the size of ScriptTest.out
+as small as possible.  For example, ScriptTest tests of model fitting
+routines use datasynth to generate one voxel's worth of data with a
+simple schemefile, fit the model to the data and convert the output to
+text.  That is sufficient to reveal errors that change the output of
+model fitting routines.
+
+
+A9.  Update the man page.
+
+Arguably, this should be done before writing any code!  However,
+always make sure that if you have added new functionality to a Camino
+command it is documented in the corresponding man page.  These are the
+main things you need to add:
+
+- A sentence or two to the start of the man page to say that the
+  program you have extended performs the new operation you have added.
+
+- An example of how to use the new functionality you have added.
+
+- A brief explanation of any new command line options you have added.
+
+The man pages are organized into overview, example and options
+sections so it is clear where to add these new bits of information.
+
+
+A10.  Extend any relevant tutorials.
+
+The website contains tutorials on using the main parts of Camino.  If
+you have made a significant addition to the functionality, you should
+include mention of it or examples in a relevant tutorial.
+
+Most people will not notice new programs in the bin/ directory or
+changes in the man pages (why would they?). A tutorial is the best way
+to publicize new functionality.
+
+
+A11.  Commit your changes to the repository.
+
+You should only do this once everything is compiling, running
+correctly, tested and documented.  Don't forget to commit updated
+versions of the JUnit classes and ScriptTest and ScriptTest.out.
+
+
+A12.  Email the camino@cs.ucl.ac.uk list to announce the changes you
+have made.
+
+
+A13.  If your changes affect Camino users, make an announcement to the
+users list: camino-users@cs.ucl.ac.uk.
+
+
+Adding new programs to Camino
+=============================
+
+The procedure for adding new programs is similar to that for updating
+existing ones with a few extra steps.
+
+N1.  Check out a fresh copy of the repository.
+
+N2.  Run the JUnit test and ScriptTest and check that everything is in
+     order before you start.
+
+N3.  Implement your new program and check that it works.
+
+Avoid duplicating any code that is already in Camino.  Basic vector,
+matrix and image operations are likely to be in the code base already,
+as are many numerical operations and calculations.  If you are not
+sure, ask someone before writing the code yourself.
+
+Runnable programs live in the camino/apps directory.  One of the new
+classes you have written will have a main method; that is the class
+that lives in camino/apps.  Other classes and objects live in one of
+the other camino packages.  All new classes should extend the Executable
+class and follow its method structure.
+
+Please think carefully about command line flags. Where possible, use 
+existing flags that are in other programs (many of these are in 
+CL_Initializer) rather than defining new ones.  
+
+
+N4.  Add lines to camino/Makefile to make sure your new program(s)
+     compile when make is run.
+
+N5.  Check that everything still compiles, by cleaning your version of
+     the repository and recompiling, as in G1 above.
+
+N6.  Check that the JUnit tests still work, as in G2 above.
+
+N7.  Check that ScriptTest still gives the right output, as in G3
+     above.
+
+N8.  Add appropriate new JUnit tests.  See A7 above.
+
+N9.  Add a wrapper for your new program to the camino/bin directory.
+
+Wrappers also have a standard structure.  The easiest way to make your
+new one is to adapt an existing one.  Think carefully about the name
+of your new program.  It should be short and succinct, but capture the
+essence of what the program does.
+
+It's better to write a command line with flags (like modelfit) than
+one that expects arguments in a particular order (like dtfit). 
+
+Make sure the permissions of your new wrapper file make it executable.
+Type
+
+% chmod +x bin/<new script>
+
+N10.  Add appropriate new tests to ScriptTest.  See A8 above.
+
+N11.  Add a man page for your new program.
+
+The man pages also have consistent structure, so it is best to adapt
+an existing man page and make sure your new one has the same sections
+and layout.
+
+N12.  Add a tutorial to the website.
+
+If you have added a new application to Camino, you can advertise it
+better to users and get more people using it more quickly by adding a
+tutorial to the website that explains how it works and how to use it.
+Again, try to stick to the format of existing tutorials.
+
+N13.  Commit your new code and changes to the repository. Don't forget
+to run 'svn add' on all of your new files, otherwise the commit won't
+get them.
+
+N14.  Announce your additions to camino@cs.ucl.ac.uk and
+camino-users@cs.ucl.ac.uk.
+
+

@@ -1,0 +1,79 @@
+
+.TH selectshells 1
+
+.SH NAME
+selectshells \- Select shells of diffusion data over a specified range of b-values
+
+.SH SYNOPSIS
+.B selectshells 
+\fB\-inputfile\fR <\fIdata\fR> \fB\-schemefile\fR <\fIscheme\fR> \fB\-maxbval\fR <\fImax\fR>
+\fB\-outputroot\fR <\fIroot\fR> [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+Select shells of a DWI image between a specified minimum and maximum b-value. This is useful for 
+getting subsets of multi-shell data that are useful for particular analysis. For example, for DTI,
+measurements in the range of b=500 s / mm^2 to b=1500 s / mm^2 are usually preferred.
+
+A common use case is to remove high b-value shells where non-Gaussian diffusion dominates. A minimum 
+b-value can also be applied, to select larger shells for multi-fibre models. By default the b=0 
+measurements are included even if a minimum b-value is applied. 
+
+
+.SH EXAMPLES
+
+Select data at b=3000 only, without b=0 data:
+
+  selectshells -inputfile data.nii.gz -schemefile multiShell.scheme -minbval 2900 -maxbval 3100 -removezeromeas
+
+
+Select the b=1000 shell from some Human Connectome project data, with the unweighted (b=5) data:
+
+  selectshells -inputfile data.nii.gz -schemefile multiShell.scheme -minbval 800 -maxbval 1200 -unweightedb 10
+
+
+Note that we use a range of values around the desired nominal shell b-value. This is because the actual gradient 
+applied is often different from the nominal value, and thus the b-values in each subject's scheme file will vary.
+
+
+.SH OPTIONS
+
+.TP
+.B \-schemefile\fR <\fIscheme\fR>
+Scheme file in Camino format.
+
+.TP
+.B \-minbval\fR <\fImin\fR> 
+Minimum b-value to include in the output. Default 0. In the same units as the scheme file. b=0 measurements
+are treated as a special case and are not removed unless the \fB-removezeromeas\fR flag is passed.
+
+.TP
+.B \-maxbval\fR <\fImax\fR> 
+Maximum b-value to include in the output. Default infinity (include all b-values). In the same units as 
+the scheme file.
+
+.TP
+.B \-unweightedb\fR <\fImaxUnweightedB\fR> 
+Maximum b-value to include as an unweighted measurement. Some imaging schemes have a small non-zero b-value 
+for the unweighted measurements. With this option, any b-value less than or equal to the specified value are
+treated as b=0.
+
+.TP
+.B \-removezeromeas\fR
+If this flag is present, b=0 measurements are not selected. By default they are selected even if a minimum
+b-value is specified.
+
+.TP
+.B \-outputroot\fR <\fIroot\fR> 
+Root of output files, selected shells of DWI data are output along with the associated scheme file. Output
+file format will be the same as the input (NIFTI or raw).
+
+
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+camino(1)
+
+.SH BUGS

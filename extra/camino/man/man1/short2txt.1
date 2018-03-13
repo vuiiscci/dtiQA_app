@@ -1,0 +1,48 @@
+.\" $Id: short2txt.1,v 1.2 2006/04/20 12:54:36 ucacdxa Exp $
+
+.TH short2txt 1
+
+.SH NAME
+short2txt \- Converts big-endian binary short integer data to text.
+
+.SH SYNOPSIS
+.B short2txt [\fB-linenum\fR] [\fB-components\fR <\fIN\fR>]
+
+.SH DESCRIPTION
+Reads big-endian binary short integer data from the standard input and outputs each short
+as text to the standard output.
+
+.SH EXAMPLES
+
+Output as text the short integers stored as binary data in test.Bshort:
+
+cat test.Bshort | short2txt
+
+The output has the form:
+
+  16459
+ -32768
+  0
+  0
+ -16455
+  :
+
+.SH OPTIONS
+
+.TP
+.B \-linenum
+Print line numbers in output.
+
+.TP
+.B \-components\fR <\fIN\fR>
+Assume output is voxel data with \fIN\fR components. Output will be annotated with voxel
+number and component number.
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+byte2txt(1), char2txt(1), int2txt(1), long2txt(1), double2txt(1), float2txt(1),
+shredder(1).
+
+.SH BUGS

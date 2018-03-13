@@ -1,0 +1,107 @@
+.TH orientbiasmap 1
+
+.SH NAME
+orientbiasmap \- Computes statistics of populations of diffusion tensors oriented over a
+hemisphere.
+
+.SH SYNOPSIS
+.B orientbiasmap \fR -schemefile <\fIscheme\fR> -snr <\fIvalue\fR> [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+Used to evaluate the robustness of an imaging scheme to imaging noise, as a function of
+orientation.
+
+The orientation bias is evaluated by sampling an identical Gaussian diffusion test
+function at different orientations. For each point on a regular grid of spherical
+coordinates, we synthesize noisy data and evaluate the results. The regular grid of
+spherical coordinates (theta, phi) is sub-optimal in that it oversamples the pole of the
+hemisphere (where theta is small) compared to the equator. However, it is convenient for
+2D display.
+
+For each point on the grid, we synthesize a set of DWI images using the imaging scheme,
+fit the diffusion tensor, and produce the following statistics. All statistics are
+written as 2D matrices in CSV files, with each row at a constant theta and each column at
+a constant phi. The output file extensions are:
+
+  meanfa.csv - Mean FA recovered from the noisy data. 
+  stdfa.csv  - Standard deviation of FA
+  meantr.csv - Mean trace
+  stdtr.csv  - Standard deviation of trace
+  dyadl1.csv - Principal eigenvalue of the mean dyadic tensor.
+
+  dyadbias.csv   - The angle (in degrees) between the primary eigenvector of the mean dyadic 
+                   tensor and that of the test function.
+
+  coneUncertainty.csv - Aperture f the 100 * (1 - alpha) % cone of uncertainty (in degrees),
+                        such a cone centered on the mean vector would contain 
+                        100 * (1 - alpha) % of samples orientations. 
+
+The diadbias.csv is a measure of the angle between the mean of the sample axes, and the
+actual test function. It ranges betwen 0 (perfect alignment) and 90 (orthogonal), but in
+practice it should not be more than a few degrees.
+
+The interpretation of the mean and standard deviation of FA and Tr will depend on the
+input test function. The default test function FA is 0.8, with a trace of 2.1E-9. The
+typical trace of diffusion tensors in the human brain is about 2E-9 m^2 / s. If your
+scheme file does not have b-values in matching units (s / m^2), then adjust trace
+accordingly. For example, if your scheme file has b=1000 s / mm^2, you would want to do
+something like "-trace 2.1E-3".
+
+.SH EXAMPLES
+
+pointset2scheme -inputfile camino/PointSets/Elec012.txt -bvalue 700 -addzeromeas 1
+-numscans 3 > M1_N12_b700_R3.scheme
+
+orientbiasmap -schemefile M1_N12_b700_R3.scheme -trace 2.1E-3 -fa 0.75 -snr 12
+-outputroot M1_N12_b700_R3_ldt_
+
+.SH OPTIONS
+
+.TP
+.B \-schemefile\fR <\fIcode\fR>
+The imaging scheme to be evaluated.
+
+.TP
+.B \-snr\fR <\fIvalue\fR>
+The estimated signal to noise ratio in the b=0 image.
+
+.TP
+.B \-outputroot\fR <\fIroot\fR>
+String prepended to output file names.
+
+.TP
+.B \-fa\fR <\fIvalue\fR>
+The FA of the test function. The default is 0.8.
+
+.TP
+.B \-trace\fR <\fIvalue\fR>
+The trace of the test function. The default is 2.1E-9.
+
+.TP
+.B \-samples\fR <\fInumber\fR>
+The number of synthetic measurements to generate at each point. The default is 500. 
+
+.TP
+.B \-model\fR <\fIcode\fR>
+The model used to fit the tensor data, may be linear (ldt), weighted linear (ldt_wtd) or
+another single-DT fitting method. The default is ldt.
+
+.TP
+.B \-step\fR <\fIthetaStep\fR> <\fIphiStep\fR>
+The resolution of the grid, in degrees. The default is equivalent to "-step 2 4". The
+sphere is not sampled evenly in this way; the poles (theta close to 0) will be
+oversampled compared to the equator. However it is convenient to display on a regular
+grid.
+
+.TP
+.B \-alpha\fR <\fIalpha\fR> 
+The alpha value to use in computing the cone of uncertainty. Default 0.05.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+invstats(1), mfrstats(1)
+
+.SH BUGS

@@ -1,0 +1,111 @@
+.\" $Id$
+
+.TH niftiheader 1
+
+.SH NAME
+niftiheader \- Read a NIFTI-1 header and print the header attributes.
+
+.SH SYNOPSIS
+.B niftiheader -readheader <\fIimage file\fR> 
+
+.SH DESCRIPTION
+
+Reads a NIFTI-1 header and outputs the standard header fields as text, or create a new
+header.
+
+For explanation of the NIFTI-1 standard, please see http://nifti.nimh.nih.gov/nifti-1
+
+                    
+
+.SH EXAMPLES
+
+Unlike \fBanalyzeheader\fR, we require an output file name to determine header type.
+
+  niftiheader -initfromheader image.nii -qform 1 1 0 0 0 10 20 30 -outputfile newqform.nii
+
+
+
+.OPTIONS
+
+.TP
+.B \-readheader \fR <\fIfile\fR> 
+Reads header information from \fIfile\fR and prints to stdout. If this option is not
+specified, then the program writes a header based on the other arguments.
+
+.TP
+.B \-initfromheader \fR <\fIfile\fR> 
+Uses an existing header to initialize a new header.
+
+.TP
+.B \-datatype \fR <\fItype\fR> 
+Sets the datatype to a Camino data type. The argument \fItype\fR is a string eg  double,
+float, int.
+
+.TP
+.B \-intent \fR <\fIcode\fR> 
+Sets the intent code.
+
+.TP
+.B \-networkbyteorder \fR
+Sets the header byte order to network (big-endian).
+
+.TP
+.B \-intelbyteorder \fR
+Sets the header byte order to intel (little-endian), as used by most PCs and Macs.
+
+.TP
+.B \-scaleslope\fR <\fIcode\fR> 
+Sets the scale slope.
+
+.TP
+.B \-scaleinter\fR <\fIcode\fR> 
+Sets the scale intercept.
+
+.TP
+.B \-dims\fR <\fIn\fR> <\fIdim1\fR> ... <\fimn\fR> 
+Sets the data dimensionality to \fIn\fR dimensions, and sets the size of each. For
+example, "-dims 3 128 128 60". The maximum number of dimensions is 7.
+
+.TP
+.B \-pixdims\fR <\fIn\fR> <\fIqfac\fR> <\fIdim1\fR> ... <\fimn\fR> 
+Sets the pixel dimensions and qfactor.
+
+.TP
+.B \-qform\fR <\fIqform_code\fR> <\fIqfac\fR> <\fIquaternb\fR> <\fIquaternc\fR> <\fIquaternd\fR> <\fIqoffset_x\fR> <\fIqoffset_y\fR> <\fIqoffset_z\fR>
+Sets the qform parameters.
+
+.TP
+.B \-sform\fR <\fIsform_code\fR> <\fIsform_11\fR> <\fIsform_12\fR> ... <\fIsform_44\fR>
+Sets the sform code and sform matrix, by row.
+
+.TP
+.B \-outputfile\fR <\fIfile\fR>
+Sets the output file.
+
+.SH AUTHORS
+
+Philip Cook <camino@cs.ucl.ac.uk>
+
+This program uses some code from the public-domain niftijlib code by Kate Fissell,
+University of Pittsburgh.
+
+.SH "SEE ALSO"
+dt2nii(1), nii2dt(1)
+
+.SH CAVEATS
+
+The program cannot modify existing headers in place. To modify an existing header, you
+would need to do
+
+gunzip image.nii.gz
+
+niftiheader -initfromheader image.nii ... -outputfile tmp.nii
+
+shredder 352 1 0 < image.nii > data.raw
+
+cat tmp.nii data.raw > newImage.nii
+
+
+NIfTI .nii headers and .hdr headers are not interchangeable. You cannot do the above with
+a .hdr file, because it will be missing the extension field (a .nii header is 352 bytes,
+not 348 as for .hdr).

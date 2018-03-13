@@ -1,0 +1,55 @@
+.\" $Id: shfit.1,v 1.3 2006/04/17 10:36:16 ucacdxa Exp $
+
+.TH "shfit" 1
+.SH NAME
+shfit \- Fits the spherical harmonic series to the log measurements.
+
+.SH SYNOPSIS
+.B shfit
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+Fits the spherical harmonic series to the apparent diffusion coefficient profile. The
+program computes d = -1/b log(A(q)/A(0)) for each measurements and fits the series to d
+as a function of q/|q|. The output of the operation in each voxel is the array [exitCode,
+log A^\star(0), c00, c20, Re(c21), Im(c21), Re(c22), Im(c22), c40, Re(c41), Im(c41),
+...], where ckl is the coefficient of the k-th order spherical harmonic with index l; the
+exitCode indicates the success of the operation and should be zero if everything worked
+OK; A^\star(0) is the best fit MRI signal at b=0.
+
+Fitting the spherical harmonic series is not particularly useful on its own. More useful
+it to use the spherical harmonic series for voxel classification, see voxelclassify(1).
+The anisotropy of the spherical harmonic fit, which sfanis(1) can compute, is a useful
+alternative to the fractional anisotropy, fa(1), which takes into account departures from
+Gaussian displacements.
+
+.SH EXAMPLES
+
+Fit the fourth-order spherical harmonic series to some synthetic data with two dominant
+directions:
+
+datasynth -testfunc 3 -voxels 1 -snr 16 -schemefile A.scheme | shfit -schemefile A.scheme
+-order 4 > test_SH.Bdouble
+
+Compute the spherical harmonic anisotropy:
+
+datasynth -testfunc 3 -voxels 1 -snr 16 -schemefile A.scheme | shfit -schemefile A.scheme
+-order 4 | sfanis -inputmodel sh -order 4 | double2txt
+
+.SH OPTIONS
+Input/output data and simulations options are the same as modelfit(1).
+
+.TP
+Options concerned with the spherical harmonic fitting:
+
+.TP
+.B \-order\fR <\fIMaximum series order\fR>
+Specifies the highest order of the series to fit.
+
+.SH "SEE ALSO"
+modelfit(1), sfanis(1), sfplot(1), sfpeaks(1)
+
+.SH BUGS
+
+.SH AUTHOR
+Danny Alexander <camino@cs.ucl.ac.uk>

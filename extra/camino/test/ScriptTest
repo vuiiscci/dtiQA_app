@@ -1,0 +1,894 @@
+#!/bin/bash -x
+
+# Tests the output of the scripts in ../bin.
+#
+# $Id: ScriptTest,v 1.29 2006/07/26 21:28:18 ucacpco Exp $
+
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+BINPATH=`cd $SCRIPTDIR/../bin; pwd`
+PATH=${BINPATH}:${PATH}
+
+UNAME=`uname`
+CYGWIN=`expr ${UNAME} : "CYGWIN"`
+
+if [[ $CYGWIN == '0' ]]; then
+    export CLASSPATH=${SCRIPTDIR}/..
+else
+    export CLASSPATH=`cygpath -w ${SCRIPTDIR}/..`
+fi
+
+
+
+SCHEMEFILE=$SCRIPTDIR/bmx6.scheme
+SCHEMEFILE1=$SCRIPTDIR/bmx7_ED.scheme1
+
+D2T="double2txt 6"
+F2T=float2txt
+I2T=int2txt
+
+# Random number tries to avoid conflicts
+#
+# This gets removed at the end so don't set to anything permanent
+DATADIR=/tmp/caminotest_$RANDOM
+
+mkdir $DATADIR
+
+if ! [[ $? -eq 0 && -e $DATADIR ]]; then
+    echo 
+    DATADIR=$SCRIPTDIR/scripttest_data
+    mkdir $DATADIR
+fi
+
+
+if ! [[ $? -eq 0 && -e $DATADIR ]]; then
+    echo "Cannot create temporary directory for test. This program requires write access to /tmp or the camino/test directory"
+ 
+   exit 1
+fi
+
+
+if [[ $CYGWIN != '0' ]]; then
+   DATADIR=`cygpath -w ${DATADIR}/..`
+fi
+
+# Test the multi-tensor fitting pipelines.
+
+# Test the ADC fitting script on a single voxel's
+# worth of synthetic data.
+echo "TEST 0"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 1 | adcfit - ${SCHEMEFILE} | $D2T
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -schemefile ${SCHEMEFILE1} -inversion -1 | $D2T
+
+# Test the single diffusion-tensor fitting script on a single voxel's
+# worth of synthetic data.
+echo "TEST 1"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 1 | dtfit - ${SCHEMEFILE} | $D2T
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 1 -schemefile ${SCHEMEFILE1} | $D2T
+
+# Test the two-tensor fitting script on a single voxel's
+# worth of synthetic data.
+echo
+echo "TEST 2"
+datasynth -seed 0  -testfunc 3 -schemefile ${SCHEMEFILE} -voxels 1 | twotenfit - ${SCHEMEFILE} | $D2T
+datasynth -seed 0  -testfunc 3 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 31 -schemefile ${SCHEMEFILE1} | $D2T
+
+# Test the three-tensor fitting script on a single voxel's
+# worth of synthetic data.
+echo
+echo "TEST 3"
+datasynth -seed 0  -testfunc 4 -schemefile ${SCHEMEFILE} -voxels 1 | threetenfit - ${SCHEMEFILE} | $D2T
+datasynth -seed 0  -testfunc 4 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 231 -schemefile ${SCHEMEFILE1} | $D2T
+
+# Use the wrapper script for modelfit to repeat the previous test.  The
+# output should be unchanged.
+echo
+echo "TEST 4"
+datasynth -seed 0  -testfunc 4 -schemefile ${SCHEMEFILE} -voxels 1 | modelfit -inversion 231 -schemefile ${SCHEMEFILE} | $D2T
+
+
+# Test the spherical harmonics pipeline.
+
+# Test the spherical harmonic fitting script on a single voxel's worth of
+# data.
+echo
+echo "TEST 5"
+datasynth -seed 0  -testfunc 4 -schemefile ${SCHEMEFILE} -voxels 1 | shfit -schemefile ${SCHEMEFILE} -order 6 | $D2T
+datasynth -seed 0  -testfunc 4 -schemefile ${SCHEMEFILE1} -voxels 1 | shfit -schemefile ${SCHEMEFILE1} -order 6 | $D2T
+
+# Test fitting the spherical harmonic coeffs using
+# the fitting script shfit and piping the output into the anisotropy
+# script sfanis and other shape indices sfskewness and sfkurtosis.
+echo
+echo "TEST 7"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 1 | shfit -schemefile ${SCHEMEFILE} -order 6 | sfanis -inputmodel sh -order 6 -schemefile ${SCHEMEFILE} | $D2T
+echo
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 1 | shfit -schemefile ${SCHEMEFILE} -order 6 | sfskewness -inputmodel sh -order 6 -schemefile ${SCHEMEFILE} | $D2T
+echo
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 1 | shfit -schemefile ${SCHEMEFILE} -order 6 | sfkurtosis -inputmodel sh -order 6 -schemefile ${SCHEMEFILE} | $D2T
+
+# Test the voxel classification on a single voxel's worth of noise-free
+# synthetic data from an anisotropic Gaussian test function.
+echo
+echo "TEST 8"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 1 | voxelclassify -schemefile ${SCHEMEFILE} -order 6 | $D2T        
+
+# Repeat the test above with specified f-test thresholds.  The output
+# should be 2.
+echo
+echo "TEST 9"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 1 | voxelclassify -schemefile ${SCHEMEFILE} -order 6 -ftest 1.0E-20 1.0E-7 1.0E-7 | $I2T
+
+# Repeat the test above with a non-Gaussian test function.  The output
+# should be 4.
+echo
+echo "TEST 10"
+datasynth -seed 0  -testfunc 3 -schemefile ${SCHEMEFILE} -voxels 1 | voxelclassify -schemefile ${SCHEMEFILE} -order 6 -ftest 1.0E-20 1.0E-7 1.0E-7 | $I2T
+
+# Try ten trials on noisy data synthesized from a Gaussian test function.
+echo
+echo "TEST 11"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 10 -snr 16 | voxelclassify -schemefile ${SCHEMEFILE} -order 6 -ftest 1.0E-20 1.0E-7 1.0E-7 | $I2T
+
+# Try ten trials on noisy data synthesized from a non-Gaussian test function.
+echo
+echo "TEST 12"
+datasynth -seed 0  -testfunc 3 -schemefile ${SCHEMEFILE} -voxels 10 -snr 16 | voxelclassify -schemefile ${SCHEMEFILE} -order 6 -ftest 1.0E-20 1.0E-7 1.0E-7 | $I2T
+
+# Repeat the test above specifying the synthetic data parameters as
+# arguments to voxelclassify directly.  The output should be identical to
+# the test above.
+echo
+echo "TEST 13"
+voxelclassify -seed 0 -testfunc 3 -voxels 10 -snr 16 -schemefile ${SCHEMEFILE} -order 6 -ftest 1.0E-20 1.0E-7 1.0E-7 | $I2T
+
+# Outputs an image of spherical harmonic series fit to noisy data
+# synthesized from test function 1.
+echo
+echo "TEST 14"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 16 -snr 16 | shfit -order 4 -schemefile ${SCHEMEFILE} | sfplot -xsize 4 -ysize 4 -order 4 -pointset 2 -minifigsize 30 30 -minifigseparation 2 2 -inputmodel sh -inputdatatype double > $DATADIR/test.gray
+
+# Test the conversion between voxel and scanner orders.
+echo
+echo "TEST 15"
+datasynth -seed 0  -testfunc 1 -snr 500 -schemefile ${SCHEMEFILE} -voxels 3 | voxel2scanner -voxels 3 -components 66 | scanner2voxel -voxels 3 -components 66 | $F2T
+
+
+# Test the peak finder.
+echo
+echo "TEST 15a"
+datasynth -seed 0  -testfunc 1 -snr 16 -fixedmodq 6 60 250000 0.04 -voxels 10 | shfit -order 4 -fixedmodq 6 60 250000 0.04 | sfpeaks -inputmodel sh -order 4 -mepointset 60 -searchradius 0.9559 | $D2T
+echo
+datasynth -seed 0  -testfunc 3 -snr 16 -fixedmodq 6 60 250000 0.04 -voxels 10 | shfit -order 4 -fixedmodq 6 60 250000 0.04 | sfpeaks -inputmodel sh -order 4 -mepointset 60 -searchradius 0.9559 | $D2T
+
+
+# Test the consistency fraction computation.
+echo
+echo "TEST 16"
+datasynth -seed 0  -testfunc 1 -snr 16 -schemefile ${SCHEMEFILE1} -voxels 10 | shfit -order 4 -schemefile ${SCHEMEFILE1} | sfpeaks -inputmodel sh -order 4 -inputdatatype double -mepointset 60 -searchradius 0.9559 | consfrac -testfunc 1 -voxels 10 | $D2T
+echo
+datasynth -seed 0  -testfunc 1 -snr 16 -schemefile ${SCHEMEFILE1} -voxels 10 | shfit -order 4 -schemefile ${SCHEMEFILE1} | sfpeaks -mepointset 60 -inputmodel sh -order 4 -inputdatatype double -searchradius 0.9559 | consfrac -testfunc 1 -voxels 10 -threshold 0.96 | $D2T
+echo
+datasynth -seed 0  -testfunc 3 -snr 16 -schemefile ${SCHEMEFILE1} -voxels 10 | shfit -order 4 -schemefile ${SCHEMEFILE1} | sfpeaks -mepointset 60 -inputmodel sh -order 4 -inputdatatype double -searchradius 0.9559 | consfrac -testfunc 3 -voxels 10 | $D2T
+
+
+# Test the multi fibre statistics program.
+echo
+echo "TEST 16a"
+datasynth -seed 0  -testfunc 1 -snr 16 -schemefile ${SCHEMEFILE1} -voxels 10 | shfit -order 4 -schemefile ${SCHEMEFILE1} | sfpeaks -mepointset 60 -inputmodel sh -order 4 -inputdatatype double -searchradius 0.9559 | mfrstats -voxels 10 | $D2T
+echo
+datasynth -seed 0  -testfunc 3 -snr 16 -schemefile ${SCHEMEFILE1} -voxels 10 | shfit -order 4 -schemefile ${SCHEMEFILE1} | sfpeaks -mepointset 60 -inputmodel sh -order 4 -inputdatatype double -searchradius 0.9559 | mfrstats -voxels 10 | $D2T
+echo
+datasynth -seed 0  -testfunc 3 -snr 16 -schemefile ${SCHEMEFILE1} -voxels 10 | shfit -order 4 -schemefile ${SCHEMEFILE1} | sfpeaks -mepointset 60 -inputmodel sh -order 4 -inputdatatype double -numpds 4 -searchradius 0.9559 | mfrstats -voxels 10 -numpds 4 | $D2T
+
+# Test the tensor processing scripts.
+echo
+echo "TEST 17"
+datasynth -seed 0  -testfunc 1 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | fa | $D2T
+echo
+datasynth -seed 0  -testfunc 3 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | twotenfit - $SCHEMEFILE | fa -inputmodel twotensor | $D2T
+echo
+datasynth -seed 0  -testfunc 4 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | threetenfit - $SCHEMEFILE | fa -inputmodel threetensor | $D2T
+
+echo
+echo "TEST 18"
+datasynth -seed 0  -testfunc 1 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | trd | $D2T
+echo
+datasynth -seed 0  -testfunc 3 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | twotenfit - $SCHEMEFILE | trd -inputmodel twotensor | $D2T
+echo
+datasynth -seed 0  -testfunc 4 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | threetenfit - $SCHEMEFILE | trd -inputmodel threetensor | $D2T
+
+echo
+echo "TEST 19"
+datasynth -seed 0  -testfunc 1 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | $D2T
+echo
+datasynth -seed 0  -testfunc 3 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | twotenfit - $SCHEMEFILE | dteig -inputmodel twotensor | $D2T
+echo
+datasynth -seed 0  -testfunc 4 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | threetenfit - $SCHEMEFILE | dteig -inputmodel threetensor | $D2T
+
+# Tests with background thresholding
+echo
+echo "TEST 20"
+bin/modelfit -schemefile $SCHEMEFILE -inversion 1 < ${SCRIPTDIR}/FourVoxelsFromG.Bfloat | $D2T
+echo
+echo "TEST 21"
+bin/modelfit -schemefile $SCHEMEFILE -inversion 1 -bgthresh 100 < ${SCRIPTDIR}/FourVoxelsFromG.Bfloat | $D2T
+
+# Tests the input to datasynth -seed 0 
+echo
+echo "TEST 22"
+bin/dtfit ${SCRIPTDIR}/FourVoxelsFromG.Bfloat $SCHEMEFILE | bin/datasynth -seed 0  -schemefile $SCHEMEFILE -inputmodel dt | $F2T
+echo
+echo "TEST 23"
+cat ${SCRIPTDIR}/FourVoxelsFromG.Bfloat | bin/modelfit -schemefile $SCHEMEFILE -inversion 1 -bgthresh 100 | bin/datasynth -seed 0  -schemefile $SCHEMEFILE -inputmodel dt | $F2T
+
+
+# Test the restore script.
+echo
+echo "TEST 24"
+datasynth -seed 0  -testfunc 1 -voxels 1 -snr 8 -schemefile $SCHEMEFILE | bin/restore - $SCHEMEFILE 0.125 | $D2T
+
+
+# Test the linear reconstruction method for DT fitting.
+echo
+echo "TEST 25"
+dtmx -schemefile $SCHEMEFILE > $DATADIR/BMX6_DTMX.Bdouble
+echo
+echo "TEST 26"
+datasynth -seed 0  -testfunc 1 -voxels 5 -snr 200 -schemefile $SCHEMEFILE | linrecon - $SCHEMEFILE $DATADIR/BMX6_DTMX.Bdouble -log | fa | $D2T
+
+
+# Test the multitenfit script
+echo
+echo "TEST 27"
+datasynth -seed 0  -testfunc 3 -schemefile $SCHEMEFILE -snr 16 -voxels 16 > $DATADIR/T3_SNR16_V16.Bfloat
+voxelclassify -inputfile $DATADIR/T3_SNR16_V16.Bfloat -schemefile $SCHEMEFILE -order 4 -ftest 1.0E-20 1.0E-14 1.0E-6 > $DATADIR/T3_SNR16_V16_VC.Bint
+multitenfit -schemefile $SCHEMEFILE -voxclassmap $DATADIR/T3_SNR16_V16_VC.Bint < $DATADIR/T3_SNR16_V16.Bfloat | $D2T
+echo
+echo "TEST 28"
+multitenfit -schemefile $SCHEMEFILE -voxclassmap $DATADIR/T3_SNR16_V16_VC.Bint -classifiedmodels 5 1 1 1 1 11 < $DATADIR/T3_SNR16_V16.Bfloat | $D2T
+echo
+echo "TEST 29"
+multitenfit -schemefile $SCHEMEFILE -voxclassmap $DATADIR/T3_SNR16_V16_VC.Bint -classifiedmodels 5 1 1 1 1 11 -maxcomponents 3 < $DATADIR/T3_SNR16_V16.Bfloat | $D2T
+
+# Test the multitensor format with fa, trd and dteig
+echo
+echo "TEST 30"
+multitenfit -schemefile $SCHEMEFILE -voxclassmap $DATADIR/T3_SNR16_V16_VC.Bint < $DATADIR/T3_SNR16_V16.Bfloat | fa -inputmodel multitensor  | $D2T
+echo
+echo "TEST 31"
+multitenfit -schemefile $SCHEMEFILE -voxclassmap $DATADIR/T3_SNR16_V16_VC.Bint < $DATADIR/T3_SNR16_V16.Bfloat | trd -inputmodel multitensor  | $D2T
+echo
+echo "TEST 32"
+multitenfit -schemefile $SCHEMEFILE -voxclassmap $DATADIR/T3_SNR16_V16_VC.Bint < $DATADIR/T3_SNR16_V16.Bfloat | dteig -inputmodel multitensor  | $D2T
+
+# Test LUT generation
+echo
+echo "TEST 33"
+dtlutgen -seed 0 -lrange 6 12 -step 2 -snr 16 -samples 500 -schemefile $SCHEMEFILE > $DATADIR/bingham_bmx6_snr16.Bdouble 
+cat $DATADIR/bingham_bmx6_snr16.Bdouble | $D2T
+
+# Test PICoPDFs
+echo
+echo "TEST 34"
+datasynth -seed 0  -testfunc 1 -voxels 5 -snr 16 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | picopdfs -inputmodel dt -luts $DATADIR/bingham_bmx6_snr16.Bdouble | $D2T
+
+# Test QBall Matrix
+echo
+echo "TEST 35"
+qballmx -schemefile ${SCRIPTDIR}/bmx7.scheme > $DATADIR/BMX7_QBALLMX.Bdouble
+
+# Second test for QBall - use matrix to generate coeffs
+echo
+echo "TEST 36"
+datasynth -seed 0  -testfunc 3 -voxels 5 -snr 200 -schemefile ${SCRIPTDIR}/bmx7.scheme | linrecon - ${SCRIPTDIR}/bmx7.scheme $DATADIR/BMX7_QBALLMX.Bdouble -normalize | $D2T
+
+# Test datasynth -seed 0  from input file
+echo
+echo "TEST 37"
+datasynth -seed 0  -testfunc 1 -snr -1 -schemefile $SCHEMEFILE -voxels 2 | dtfit - $SCHEMEFILE | datasynth -seed 0  -inputmodel dt -snr -1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | $D2T
+
+
+# Test datasynth -seed 0  from input file
+echo
+echo "TEST 38"
+datasynth -seed 0  -testfunc 3 -snr -1 -schemefile $SCHEMEFILE -voxels 1 | twotenfit - $SCHEMEFILE -inversion 31 | datasynth -seed 0  -inputmodel twotensor -snr -1 -schemefile $SCHEMEFILE | twotenfit - $SCHEMEFILE -inversion 31 | $D2T
+
+# Test datasynth -seed 0  from input file - twotensor inputdatatype
+echo
+echo "TEST 39"
+datasynth -seed 0  -testfunc 3 -snr -1 -schemefile $SCHEMEFILE -voxels 1 | twotenfit - $SCHEMEFILE -inversion 31 | datasynth -seed 0  -inputmodel twotensor -snr -1 -schemefile $SCHEMEFILE | twotenfit - $SCHEMEFILE -inversion 31 | $D2T
+
+
+# Test datasynth -seed 0  from input file - multitensor inputdatatype
+echo
+echo "TEST 40"
+datasynth -seed 0  -testfunc 3 -snr -1 -schemefile $SCHEMEFILE -voxels 1 | threetenfit - $SCHEMEFILE  | datasynth -seed 0  -inputmodel multitensor -maxcomponents 3 -snr -1 -schemefile $SCHEMEFILE | threetenfit - $SCHEMEFILE | $D2T
+
+# Test datasynth -seed 0  from input file - threetensor inputdatatype
+echo
+echo "TEST 41"
+datasynth -seed 0  -testfunc 4 -snr -1 -schemefile $SCHEMEFILE -voxels 1 | threetenfit - $SCHEMEFILE | datasynth -seed 0  -inputmodel threetensor -snr -1 -schemefile $SCHEMEFILE | threetenfit - $SCHEMEFILE | $D2T 
+
+# Test analyzeheader
+echo
+echo "TEST 42"
+analyzeheader -voxeldims 2.0 2.0 2.0 -datadims 128 128 60 -nimages 1 -datatype float -scale 1 -description test_header -centre 64 64 30 > $DATADIR/beheader.hdr
+
+analyzeheader -readheader $DATADIR/beheader 
+
+analyzeheader -voxeldims 2.0 2.0 2.0 -datadims 128 128 60 -nimages 1 -datatype float -scale 1 -description test_header -centre 64 64 30 -intelbyteorder > $DATADIR/leheader.hdr
+
+analyzeheader -readheader $DATADIR/leheader 
+
+analyzeheader -initfromheader $DATADIR/beheader -datatype short -scale 2 > $DATADIR/beheaderChanged.hdr
+
+analyzeheader -readheader $DATADIR/beheaderChanged.hdr
+
+
+# Test axialdistfit
+echo
+echo "TEST 43"
+axialdistfit -outputpicoformat < ${SCRIPTDIR}/axes.Bdouble | $D2T
+echo
+axialdistfit -outputpicoformat -pdf watson < ${SCRIPTDIR}/axes.Bdouble | $D2T
+echo
+axialdistfit -outputpicoformat -pdf acg < ${SCRIPTDIR}/axes.Bdouble | $D2T
+
+
+# Test the reorient script
+echo
+echo "TEST 44"
+echo "0.8660  0.5  0.0  -8.56335" > $DATADIR/Rot30.txt
+echo "-0.5  0.866  0.0  -3.35788" >> $DATADIR/Rot30.txt
+echo "0.0  0.0  1.0  18.6044" >> $DATADIR/Rot30.txt
+echo "0  0  0  1" >> $DATADIR/Rot30.txt
+
+echo "1.0 0.0  0.0  0.0" > $DATADIR/Shear30.txt
+echo "0.8660  1.0  0.0  -94.2236" >> $DATADIR/Shear30.txt
+echo "0.0  0.0  1.0  0.0" >> $DATADIR/Shear30.txt
+echo "0  0  0  1" >> $DATADIR/Shear30.txt
+
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 1 -gaussmix 1 1.7E-9 0 0 0.3E-9 0 0.1E-9 1 | dtfit - ${SCHEMEFILE} | reorient -trans $DATADIR/Rot30.txt -reorientation ppd | $D2T
+echo
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 1 -gaussmix 1 1.7E-9 0 0 0.3E-9 0 0.1E-9 1 | dtfit - ${SCHEMEFILE} | reorient -trans $DATADIR/Rot30.txt -reorientation fs | $D2T
+echo
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 1 -gaussmix 1 1.7E-9 0 0 0.3E-9 0 0.1E-9 1 | dtfit - ${SCHEMEFILE} | reorient -trans $DATADIR/Shear30.txt -reorientation ppd | $D2T
+echo
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 1 -gaussmix 1 1.7E-9 0 0 0.3E-9 0 0.1E-9 1 | dtfit - ${SCHEMEFILE} | reorient -trans $DATADIR/Shear30.txt -reorientation fs | $D2T
+echo
+
+# Now test the non-linear reorientation.
+# Create a totally artificial 3x3x3 warpfield
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 81 -snr 4 -testfunc 1 | dtfit - ${SCHEMEFILE} | fa -outputdatatype float > $DATADIR/TestWarpX.img
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 81 -snr 4 -testfunc 1 | dtfit - ${SCHEMEFILE} | fa -outputdatatype float > $DATADIR/TestWarpY.img
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 81 -snr 4 -testfunc 1 | dtfit - ${SCHEMEFILE} | fa -outputdatatype float > $DATADIR/TestWarpZ.img
+analyzeheader -datadims 3 3 3 -voxeldims 1 1 1 -datatype float > $DATADIR/TestWarpX.hdr
+analyzeheader -datadims 3 3 3 -voxeldims 1 1 1 -datatype float > $DATADIR/TestWarpY.hdr
+analyzeheader -datadims 3 3 3 -voxeldims 1 1 1 -datatype float > $DATADIR/TestWarpZ.hdr
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 27 -gaussmix 1 1.7E-9 0 0 0.3E-9 0 0.1E-9 1 | dtfit - ${SCHEMEFILE} | reorient -datadims 3 3 3 -voxeldims 1 1 1 -xtrans $DATADIR/TestWarpX -ytrans $DATADIR/TestWarpY -ztrans $DATADIR/TestWarpZ -reorientation ppd | $D2T
+echo
+datasynth -seed 0  -schemefile ${SCHEMEFILE} -voxels 27 -gaussmix 1 1.7E-9 0 0 0.3E-9 0 0.1E-9 1 | dtfit - ${SCHEMEFILE} | reorient -datadims 3 3 3 -voxeldims 1 1 1 -xtrans $DATADIR/TestWarpX -ytrans $DATADIR/TestWarpY -ztrans $DATADIR/TestWarpZ -reorientation fs | $D2T
+echo
+
+# pointset2scheme
+echo 
+echo "TEST 45"
+pointset2scheme -bvalue 1000 < ${SCRIPTDIR}/../PointSets/Elec011.txt
+pointset2scheme -bvalue 1000 < ${SCRIPTDIR}/Elec011_3vec.txt
+pointset2scheme -bvalue 1000 < ${SCRIPTDIR}/Elec011_3vec_nohdr.txt
+
+# orderpoints
+echo
+echo "TEST 46"
+orderpoints -numpoints 30 -temperature 1.0 -coolingfactor 1E-1 -seed 592477
+
+
+# subsetpoints
+echo
+echo "TEST 47"
+subsetpoints -numsubsets 5 -coolingfactor 1E-1 -temperature 12.0 -trialsbetweencooling 1000 -seed 59247 -randominit < PointSets/Elec030.txt
+
+#Boostrap data synth 
+echo
+echo "TEST 48"
+datasynth -seed 5 -testfunc 1 -bootstrap 8 -snr 16 -voxels 20 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | fa | $D2T > $DATADIR/bsfromsynth 
+
+cat $DATADIR/bsfromsynth
+
+echo 
+echo "TEST 49 "
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 20 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | datasynth -inputmodel dt -seed 5 -testfunc 1 -bootstrap 8 -snr 16 -voxels 20 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | fa | $D2T > $DATADIR/bsfrominput
+
+# should be the same
+diff $DATADIR/bsfromsynth $DATADIR/bsfrominput
+
+# dtshape
+
+echo "TEST 50"
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat cl | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat cp | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat cs | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat fa | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat ra | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat 2dfa | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat tr | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat md | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat rd | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat l1 | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat l2 | $D2T
+
+datasynth -seed 5 -testfunc 1 -snr -1 -voxels 1 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | dteig | dtshape -stat l3 | $D2T
+
+
+
+# Test GZIP output
+echo "TEST 51"
+
+datasynth -seed 5 -testfunc 1 -snr 20 -voxels 10 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | fa -gzip > ${DATADIR}/gzipFromStdOut.gz
+
+datasynth -seed 5 -testfunc 1 -snr 20 -voxels 10 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | fa -gzip -outputfile ${DATADIR}/gzipFromFileOut.gz
+
+diff ${DATADIR}/gzipFromStdOut.gz ${DATADIR}/gzipFromFileOut.gz
+
+gunzip -f ${DATADIR}/gzipFromStdOut.gz
+
+datasynth -seed 5 -testfunc 1 -snr 20 -voxels 10 -schemefile $SCHEMEFILE | dtfit - $SCHEMEFILE | fa -outputfile ${DATADIR}/uncompressed.Bdouble 
+
+diff ${DATADIR}/uncompressed.Bdouble ${DATADIR}/gzipFromStdOut	
+
+
+# analyzedti - also tests dtfit, analyze2voxel, analyzehdr, dtshape
+echo
+echo "TEST 52"
+
+
+# These commands generate the data
+#datasynth -seed 5 -testfunc 1 -snr -1 -voxels 8 -schemefile $SCHEMEFILE | voxel2scanner -components 66 -voxels 8 > ${SCRIPTDIR}/twoCubeRaw.img
+#analyzeheader -datadims 2 2 2 -voxeldims 3 3 3 -datatype float -nimages 66 -description test data > ${SCRIPTDIR}/twoCubeRaw.hdr 
+
+analyzedti ${SCRIPTDIR}/twoCubeRaw.hdr ${DATADIR}/ $SCHEMEFILE -outputdatatype float
+
+for img in dxx dxy dxz dyy dyz dzz dl1 dl2 dl3 fa tr; do 
+
+analyzeheader -readheader ${DATADIR}/${img}.hdr
+
+cat ${DATADIR}/${img}.img | float2txt
+
+done
+
+# same thing with imagelist
+echo
+echo "TEST 52b"
+
+analyzedti ${SCRIPTDIR}/twoCube3D/imagelist.txt ${DATADIR}/fromImageList_ $SCHEMEFILE -outputdatatype float
+
+for img in fa ; do 
+
+analyzeheader -readheader ${DATADIR}/fromImageList_${img}.hdr
+
+cat ${DATADIR}/${img}.img | float2txt
+
+done
+
+
+# Test the single diffusion-tensor fitting script on a single voxel's
+# worth of synthetic data using a config file.
+echo "TEST 53"
+echo "-schemefile ${SCHEMEFILE}" > $DATADIR/test.args
+datasynth -seed 0  -testfunc 1 -argfile $DATADIR/test.args -voxels 1 | dtfit - ${SCHEMEFILE} | $D2T
+datasynth -seed 0 -argfile $DATADIR/test.args  -testfunc 1 -voxels 1 | modelfit -inversion 1 -argfile $DATADIR/test.args | $D2T
+
+# Wild bootstrap of a single voxel of data
+echo "TEST 54"
+datasynth -gaussmix 1 1.554E-9 0 0 2.73E-10 0 2.73E-10 1.0 -schemefile ${SCHEMEFILE} -snr 16 -voxels 10 -wildbsmodel dt | dtfit - ${SCHEMEFILE} | fa | $D2T
+
+# Run tracking tests
+pushd . > /dev/null
+cd ${SCRIPTDIR}/tracking
+./tests.sh 1
+popd > /dev/null
+
+# Addnoise tests
+echo "TEST 56"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 10 | addnoise -sigma 0.0625 | $F2T
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 10 -snr 16 | $F2T
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 10 | addnoise -sigma 0.0625 -noisetype gaussian | $F2T
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE} -voxels 10 -snr 16 -noisetype gaussian | $F2T
+
+# synthetic FanningGrid
+echo 
+echo "TEST 57"
+fanninggrid -diffusivity 1.5E-9 -volfrac 0.75 -gridsize 2 2 2 -centredist 5 | $D2T
+
+# Nonlinear fitting with scheme V1 vs V0
+# Results not exactly the same, but close enough
+echo 
+echo "TEST 58"
+
+datasynth -seed 1220 -testfunc 1 -rotation 2 -schemefile ${SCHEMEFILE} -voxels 1 | dtfit - ${SCHEMEFILE} -nonlinear | $D2T
+datasynth -seed 1220 -testfunc 1 -rotation 2 -schemefile ${SCHEMEFILE1} -voxels 1 | dtfit - ${SCHEMEFILE1} -nonlinear | $D2T
+
+echo 
+echo "TEST 59"
+# Weighted LS fit
+
+datasynth -seed 123456 -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 7 -schemefile ${SCHEMEFILE1} | $D2T
+
+echo
+echo "TEST 60"
+
+# Ball stick fitting
+
+fanninggrid -diffusivity 2.1E-9 -volfrac 0.5 -gridsize 2 1 1 -centredist 0 -schemefile ${SCHEMEFILE} | datasynth -inputmodel ballstick -schemefile ${SCHEMEFILE} -snr 20 | modelfit -inversion -3 -schemefile ${SCHEMEFILE} | $D2T
+
+echo 
+echo "TEST 61"
+
+# subset scheme
+subsetscheme -schemefile ${SCHEMEFILE1} -subsetpoints ${SCRIPTDIR}/bmx7_subset10.txt -outputroot ${DATADIR}/subset
+
+cat ${DATADIR}/subset_0.scheme
+
+
+echo 
+echo "TEST 62"
+
+# Some tests for shredder
+
+shredder 0 4 0 < ${SCRIPTDIR}/tractSourceTracts.Bfloat > ${DATADIR}/tractSourceTracts.Bfloat
+
+diff ${SCRIPTDIR}/tractSourceTracts.Bfloat ${DATADIR}/tractSourceTracts.Bfloat
+echo
+shredder 0 -4 0 < ${SCRIPTDIR}/tractSourceTracts.Bfloat | shredder 0 -4 0 | float2txt
+echo
+shredder 148 4 0 < ${SCRIPTDIR}/tractSourceTracts.Bfloat | float2txt
+echo
+shredder 140 8 4 < ${SCRIPTDIR}/tractSourceTracts.Bfloat | float2txt
+echo
+shredder 136 8 4 < ${SCRIPTDIR}/tractSourceTracts.Bfloat | float2txt
+
+
+# Test text inversion codes - single tensor
+
+echo 
+echo "TEST 63"
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 1 -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv1_num
+
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -model dt -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv1_txt
+
+diff -N ${DATADIR}/inv1_num ${DATADIR}/inv1_txt
+
+
+echo 
+echo "TEST 63a"
+
+datasynth -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -model ldt -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv1_alt
+
+diff -N ${DATADIR}/inv1_num ${DATADIR}/inv1_alt
+
+
+echo 
+echo "TEST 63b"
+
+datasynth -snr 15 -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 2 -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv2_num
+
+datasynth -snr 15 -seed 0 -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -model nldt_pos -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv2_txt
+
+diff -N ${DATADIR}/inv2_num ${DATADIR}/inv2_txt
+
+echo 
+echo "TEST 63c"
+
+datasynth -snr 15 -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 7 -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv7_num
+
+datasynth -snr 15 -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -model ldt_wtd -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv7_txt
+
+
+diff -N ${DATADIR}/inv7_num ${DATADIR}/inv7_txt
+
+echo 
+echo "TEST 63d"
+
+datasynth -snr 10 -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion -2 -sigma 0.1 -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/restore_num
+
+datasynth -snr 10 -seed 0  -testfunc 1 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -model restore -sigma 0.1 -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/restore_txt
+
+diff -N ${DATADIR}/restore_num ${DATADIR}/restore_txt
+
+
+# text codes, two tensor
+echo 
+echo "TEST 64"
+
+datasynth -seed 0  -testfunc 3 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 31 -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv31_num
+
+
+datasynth -seed 0  -testfunc 3 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -model pospos dt -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv31_txt
+
+diff -N ${DATADIR}/inv31_num ${DATADIR}/inv31_txt
+
+echo 
+echo "TEST 64a"
+
+datasynth -seed 0  -testfunc 3 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -inversion 22 -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv22_num
+
+datasynth -seed 0  -testfunc 3 -schemefile ${SCHEMEFILE1} -voxels 1 | modelfit -model cylcyl_eq nldt_pos -schemefile ${SCHEMEFILE1} | $D2T > ${DATADIR}/inv22_txt
+
+diff -N ${DATADIR}/inv22_num ${DATADIR}/inv22_txt
+
+
+# text codes, multi tensor
+echo 
+echo "TEST 65"
+
+multitenfit -schemefile $SCHEMEFILE -voxclassmap $DATADIR/T3_SNR16_V16_VC.Bint -classifiedmodels 5 1 1 1 1 11 < $DATADIR/T3_SNR16_V16.Bfloat | $D2T > ${DATADIR}/mt_num
+
+multitenfit -schemefile $SCHEMEFILE -voxclassmap $DATADIR/T3_SNR16_V16_VC.Bint -classifiedmodels 5 1 1 dt 1 cylcyl < $DATADIR/T3_SNR16_V16.Bfloat | $D2T > ${DATADIR}/mt_mix
+
+diff -N ${DATADIR}/mt_num ${DATADIR}/mt_mix
+
+
+# Test zip input
+echo 
+echo "TEST 66"
+modelfit -schemefile $SCHEMEFILE -inversion 1 -inputfile ${SCRIPTDIR}/FourVoxelsFromG.Bfloat.zip | $D2T
+
+
+# fsl2scheme
+echo
+echo "TEST 67"
+
+fsl2scheme -bvecfile ${SCRIPTDIR}/bvecs -bvalfile ${SCRIPTDIR}/bvals
+
+fsl2scheme -bvecfile ${SCRIPTDIR}/bvecs -bvalfile ${SCRIPTDIR}/bvals -numscans 2
+
+fsl2scheme -bvecfile ${SCRIPTDIR}/bvecs -bvalfile ${SCRIPTDIR}/bvals -numscans 2 -interleave -bscale 1
+
+
+echo
+
+fsl2scheme -bvecfile ${SCRIPTDIR}/bvecs -bvalfile ${SCRIPTDIR}/bvals 
+
+datasynth -testfunc 1 -seed 1234 -voxels 10 -snr 20 -schemefile ${SCRIPTDIR}/HUP_M2_N12_R2.scheme2 | dtfit - ${SCRIPTDIR}/HUP_M2_N12_R2_scaled.scheme2 -model ldt_wtd | trd | $D2T
+
+datasynth -testfunc 1 -seed 1234 -voxels 10 -snr 20 -schemefile ${SCRIPTDIR}/HUP_M2_N12_R2.scheme2 | dtfit - ${SCRIPTDIR}/HUP_M2_N12_R2_scaled.scheme2 -model ldt_wtd | fa | $D2T
+
+datasynth -testfunc 1 -seed 1234 -voxels 10 -snr 20 -schemefile ${SCRIPTDIR}/HUP_M2_N12_R2.scheme2 | dtfit - ${SCRIPTDIR}/HUP_M2_N12_R2_scaled.scheme2 -model nldt_pos | trd | $D2T
+
+datasynth -testfunc 1 -seed 1234 -voxels 10 -snr 20 -schemefile ${SCRIPTDIR}/HUP_M2_N12_R2.scheme2 | dtfit - ${SCRIPTDIR}/HUP_M2_N12_R2_scaled.scheme2 -model nldt_pos | fa | $D2T
+
+
+echo
+
+# Test with Nx3 gradient dirs
+
+fsl2scheme -bvecfile ${SCRIPTDIR}/HUP_M2_N12_fsl.bvec -bvalfile ${SCRIPTDIR}/HUP_M2_N12_fsl.bval -bscale 1
+
+# pointset2scheme
+echo
+echo "TEST 68"
+
+pointset2scheme -bvalue 1000 < ${SCRIPTDIR}/Elec011_3vec_zeros.txt
+
+echo 
+
+pointset2scheme -bvalue 1000 -addzeromeas 1 < ${SCRIPTDIR}/Elec011_3vec_zeros.txt
+
+pointset2scheme -bvalue 1000 -addzeromeas 1 -flipy < ${SCRIPTDIR}/Elec011_3vec_zeros.txt
+
+# niftidt2camino
+echo
+echo "TEST 69"
+nii2dt -inputfile ${SCRIPTDIR}/niftidt.nii | $D2T
+
+# rgbscalarimg
+echo 
+echo "TEST 70"
+
+modelfit -schemefile $SCHEMEFILE -inversion 1 < ${SCRIPTDIR}/FourVoxelsFromG.Bfloat | dteig | rgbscalarimg -datadims 2 2 1 -voxeldims 2.1 2.1 2.1 -outputfile ${DATADIR}/rgb_fa.mhd
+
+head -n 12 ${DATADIR}/rgb_fa.mhd
+
+
+# image2voxel with nii input
+echo
+echo "TEST 71"
+
+image2voxel -4dimage ${SCRIPTDIR}/twoCubeRaw.nii | dtfit - ${SCHEMEFILE} | fa | $D2T
+ 
+
+echo 
+echo "TEST 72"
+
+estimatesnr -bgmask ${SCRIPTDIR}/roi_snr_20_bmx6_100vox.Bfloat.hdr -inputfile ${SCRIPTDIR}/snr_20_bmx6_100vox.Bfloat -schemefile ${SCRIPTDIR}/bmx6.scheme
+
+
+echo 
+echo "TEST 73"
+
+# pointset2scheme with gradient scaling
+pointset2scheme -inputfile ${SCRIPTDIR}/siemens6Dir.txt -usegradmod -bvalue 1000 -addzeromeas 1
+echo 
+fsl2scheme -bvecs ${SCRIPTDIR}/siemens6Dir_fsl.bvec -bvals ${SCRIPTDIR}/siemens6Dir_fsl.bval -usegradmod
+echo 
+pointset2scheme -inputfile ${SCRIPTDIR}/siemens6Dir.txt -bvalue 1000 -addzeromeas 1
+echo 
+fsl2scheme -bvecs ${SCRIPTDIR}/siemens6Dir_fsl.bvec -bvals ${SCRIPTDIR}/siemens6Dir_fsl.bval
+echo  
+
+echo 
+echo "TEST 74"
+
+# split4dnii
+
+split4dnii -inputfile ${SCRIPTDIR}/niftidt.nii -outputroot ${DATADIR}/
+# Do this so that output is the same wherever $DATADIR is
+cd $DATADIR
+niftiheader -readheader 0006.nii
+cd - > /dev/null
+shredder 352 -4 0 < ${DATADIR}/0003.nii | $F2T
+
+
+# dt2nii
+
+image2voxel -inputfile ${SCRIPTDIR}/twoCubeRaw.nii | dtfit - $SCHEMEFILE | dt2nii -outputroot ${DATADIR}/dt2nii_ -header ${SCRIPTDIR}/twoCubeRaw.nii
+cd $DATADIR
+niftiheader -readheader dt2nii_dt.nii
+cd - > /dev/null
+shredder 352 -4 0 < ${DATADIR}/dt2nii_dt.nii | $F2T
+
+image2voxel -inputfile ${SCRIPTDIR}/twoCubeRaw.nii | twotenfit - $SCHEMEFILE | dt2nii -inputmodel twotensor -outputroot ${DATADIR}/dt2nii_twotensor_ -header ${SCRIPTDIR}/twoCubeRaw.nii
+
+ls ${DATADIR}/dt2nii_twotensor_*.nii | cut -d / -f 4 > ${DATADIR}/dt2nii_twotensor_imagelist.txt
+
+image2voxel -imagelist ${DATADIR}/dt2nii_twotensor_imagelist.txt | double2txt
+
+# niftiheader again, new feature
+niftiheader -initfromheader ${DATADIR}/dt2nii_dt.nii -datatype int -outputfile ${DATADIR}/testHeaderInit.nii
+cd $DATADIR
+niftiheader -readheader testHeaderInit.nii
+cd - > /dev/null
+
+echo 
+echo "TEST 75"
+
+# Regression tests - ensure that fitting works with b=0 measurements not at the beginning of the scheme
+
+datasynth -testfunc 1 -schemefile ${SCRIPTDIR}/M6_N54_b1500.scheme -voxels 1 -snr 0 | dtfit - ${SCRIPTDIR}/M6_N54_b1500.scheme -nonlinear | $D2T
+echo
+datasynth -testfunc 1 -schemefile ${SCRIPTDIR}/M6_N54_b1500_reordered.scheme -voxels 1 -snr 0 | dtfit - ${SCRIPTDIR}/M6_N54_b1500_reordered.scheme -nonlinear | $D2T
+echo
+datasynth -testfunc 3 -schemefile ${SCRIPTDIR}/M6_N54_b1500.scheme -voxels 1 -snr 0 | twotenfit - ${SCRIPTDIR}/M6_N54_b1500.scheme | $D2T
+echo
+datasynth -testfunc 3 -schemefile ${SCRIPTDIR}/M6_N54_b1500_reordered.scheme -voxels 1 -snr 0 | twotenfit - ${SCRIPTDIR}/M6_N54_b1500_reordered.scheme | $D2T
+echo
+datasynth -testfunc 4 -schemefile ${SCRIPTDIR}/M6_N54_b1500.scheme -voxels 1 -snr 0 | threetenfit - ${SCRIPTDIR}/M6_N54_b1500.scheme | $D2T
+echo 
+datasynth -testfunc 4 -schemefile ${SCRIPTDIR}/M6_N54_b1500_reordered.scheme -voxels 1 -snr 0 | threetenfit - ${SCRIPTDIR}/M6_N54_b1500_reordered.scheme | $D2T
+  
+echo 
+echo "TEST 76"
+  
+# scheme2fsl
+scheme2fsl -inputfile ${SCRIPTDIR}/HUP_M2_N12_R2_scaled.scheme2 -bscale 1 -flipz -outputroot ${DATADIR}/fsl
+
+cat ${DATADIR}/fsl.bvecs ${DATADIR}/fsl.bvals
+
+echo 
+echo "TEST 77"
+
+# counttracts
+counttracts -inputfile ${SCRIPTDIR}/tractSourceTracts.Bfloat
+
+echo 
+echo "TEST 78"
+
+# orientbiasmap
+
+pointset2scheme -inputfile ${SCRIPTDIR}/siemens6Dir.txt -bvalue 1E9 -addzeromeas 1 > ${DATADIR}/orientbiasmap.scheme
+
+orientbiasmap -step 8 16 -schemefile ${DATADIR}/orientbiasmap.scheme -snr 20 -outputroot ${DATADIR}/
+
+cat ${DATADIR}/meanfa.csv
+
+
+echo 
+echo "TEST 79"
+
+# imagestats
+
+for stat in mean sum min max median var std ; do 
+
+  imagestats -stat $stat -images ${SCRIPTDIR}/twoCubeSequence.nii.gz ${SCRIPTDIR}/twoCubeSequence.nii.gz ${SCRIPTDIR}/twoCubeSequence_inverted.nii.gz -outputroot ${DATADIR}/imstat_${stat}
+
+  echo
+  gunzip -c ${DATADIR}/imstat_${stat}.nii.gz | shredder 352 -4 0 | $F2T
+  echo
+
+done
+
+imagessd ${SCRIPTDIR}/twoCubeSequence.nii.gz ${SCRIPTDIR}/twoCubeSequence_inverted.nii.gz 
+
+
+echo 
+echo "TEST 80"
+
+# voxel2image 
+
+datasynth -testfunc 1 -seed 1234 -voxels 8 -snr 20 -schemefile ${SCRIPTDIR}/HUP_M2_N12_R2.scheme2 | dtfit - ${SCRIPTDIR}/HUP_M2_N12_R2_scaled.scheme2 -model ldt_wtd | voxel2image -header ${SCRIPTDIR}/niftidt.nii -components 8 -outputroot ${DATADIR}/voxel2imagetest_
+
+for i in 2 3 4 5 6 7 8; do
+  imagessd ${DATADIR}/voxel2imagetest_000${i}.nii ${DATADIR}/voxel2imagetest_0001.nii
+done
+
+datasynth -testfunc 1 -seed 1234 -voxels 8 -snr 20 -schemefile ${SCRIPTDIR}/HUP_M2_N12_R2.scheme2 | dtfit - ${SCRIPTDIR}/HUP_M2_N12_R2_scaled.scheme2 -model ldt_wtd | voxel2image -header ${SCRIPTDIR}/niftidt.nii -components 8 -outputroot ${DATADIR}/voxel2imagetest_vector -outputvector -gzip
+
+imagessd ${DATADIR}/voxel2imagetest_0001.nii ${DATADIR}/voxel2imagetest_vector.nii.gz
+
+
+
+echo "TEST 81"
+
+# averagedwi 
+
+datasynth -testfunc 1 -seed 1234 -voxels 1 -snr 20 -schemefile ${SCRIPTDIR}/M6_N54_b1500.scheme | averagedwi -schemefile ${SCRIPTDIR}/M6_N54_b1500.scheme -maxbval 1E9 | double2txt
+
+datasynth -testfunc 1 -seed 1234 -voxels 1 -snr 20 -schemefile ${SCRIPTDIR}/M6_N54_b1500.scheme | averagedwi -schemefile ${SCRIPTDIR}/M6_N54_b1500.scheme -minbval 1E9 -maxbval 1.6E9 | double2txt
+
+
+echo "TEST 82"
+
+# Test some new code with HCP schemes
+fsl2scheme -bvals ${SCRIPTDIR}/hcp.bval -bvecs ${SCRIPTDIR}/hcp.bvec -zerobval 5 -bscale 1 > ${DATADIR}/hcp.scheme
+
+head ${DATADIR}/hcp.scheme
+
+echo " All Data "
+
+cat ${SCRIPTDIR}/hcpVoxel.Bfloat | dtfit - ${DATADIR}/hcp.scheme > ${DATADIR}/hcpDT.Bdouble
+
+cat ${DATADIR}/hcpDT.Bdouble | fa | double2txt
+cat ${DATADIR}/hcpDT.Bdouble | md | double2txt
+
+# Subset the HCP data and scheme, use shells between 0 and 1000(ish)
+
+echo " Subset Data "
+
+selectshells -inputfile ${SCRIPTDIR}/hcpVoxel.Bfloat -schemefile ${DATADIR}/hcp.scheme -maxbval 1100 -outputroot ${DATADIR}/hcpSubset
+
+cat ${DATADIR}/hcpSubset.Bfloat | dtfit - ${DATADIR}/hcpSubset.scheme | fa | double2txt
+cat ${DATADIR}/hcpSubset.Bfloat | dtfit - ${DATADIR}/hcpSubset.scheme | md | double2txt
+
+
+echo "TEST 83"
+
+datasynth -testfunc 1 -schemefile ${SCRIPTDIR}/M6_N54_b1500.scheme -snr 3 -voxels 25 -seed 37283 | dtfit - ${SCRIPTDIR}/M6_N54_b1500.scheme > ${DATADIR}/notSPD.Bdouble
+
+cat ${DATADIR}/notSPD.Bdouble | dteig | shredder 64 8 88 | double2txt
+
+echo
+
+dtspd -inputfile ${DATADIR}/notSPD.Bdouble -brainmask ${SCRIPTDIR}/dtSPD_brainMask.nii.gz -outputroot ${DATADIR}/spd
+
+cat ${DATADIR}/spddtSPD.Bdouble | dteig | shredder 64 8 88 | double2txt
+
+
+# this goes last -- please be careful modifying this line (contains rm -rf)
+rm -rf $DATADIR
+
+
+
+

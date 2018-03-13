@@ -1,0 +1,58 @@
+.\" $Id: threetenfit.1,v 1.3 2005/10/19 17:00:28 ucacdxa Exp $
+
+.TH threetenfit 1
+
+.SH NAME
+threetenfit \- Fits three diffusion tensors to diffusion MRI measurements.
+
+.SH SYNOPSIS
+.B threetenfit
+<data file> <scheme file> [-cylsym] 
+
+.SH DESCRIPTION
+Reads diffusion MRI data, acquired using the acquisition scheme detailed in the scheme
+file, from the data file. The data file stores the diffusion MRI data in voxel order with
+the measurements stored as big-endian four-byte floats and ordered as in the scheme file.
+See modelfit(1) for the format of the data file and scheme file. The program fits three
+diffusion tensors to each voxel and outputs the results, in voxel order and as big-endian
+eight-byte doubles, to the standard output. The program outputs twenty-two values in each
+voxel: [exitcode, ln(S(0)), m, a_1, D_1xx, D_1xy, D_1xz, D_1yy, D_1yz, D_1zz, a_2, D_2xx,
+D_2xy, D_2xz, D_2yy, D_2yz, D_2zz, a_3, D_3xx, D_3xy, D_3xz, D_3yy, D_3yz, D_3zz]. An
+exit code of zero indicates no problems. For a list of other exit codes, see modelfit(1).
+The entry S(0) is an estimate of the signal at q=0; m is the number of fitted components,
+which is always 3 here; a_1 is the mixing parameter of D_1, a_2 that for D_2 and a_3 that
+for D_3.
+
+By default, the program constrains the three diffusion tensors only to be positive
+definite. The program can also constrain the diffusion tensors to have cylindrical
+symmetry (two equal eigenvalues). This program is a simple interface to the program
+modelfit. The modelfit program provides more options for fitting pairs of diffusion
+tensors.
+
+If the first command line argument is - the program reads data from the standard input.
+
+.SH EXAMPLES
+Fit three positive-definite diffusion-tensors to the data in SubjectA.Bfloat:
+
+threetenfit SubjectA.Bfloat A.scheme > ThreeTensorA.Bdouble
+
+Equivalently:
+
+cat SubjectA.Bfloat | twotenfit - A.scheme > ThreeTensorA.Bfloat
+
+Fit three cylindrically symmetric positive-definite diffusion tensors:
+
+threetenfit SubjectA.Bfloat A.scheme -cylsym > ThreeTensorA.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-cylsym
+Constrain the diffusion tensors to have cylindrical symmetry.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), dtfit(1), twotenfit(1), fa(1), trd(1), shfit(1), shanis(1)
+
+.SH BUGS

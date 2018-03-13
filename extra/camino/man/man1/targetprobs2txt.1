@@ -1,0 +1,86 @@
+.\" $Id: targetprobs2txt.1,v 1.2 2006/04/20 12:54:36 ucacdxa Exp $
+
+.TH targetprobs2txt 1
+
+.SH NAME
+targetprobs2txt \- Converts results of connectivity based segmentation to a text file.
+
+.SH SYNOPSIS
+.B targetprobs2txt \fR -inputroot <\fIroot\fR> -seedfile <\fIfile\fR> -targetfile <\fIfile\fR> 
+-pd <\fIpd\fR> -regionindex <\fIindex\fR> -outputfile <\fIfile\fR>
+
+.SH DESCRIPTION
+
+This tool reads PICo connection probability maps, seeds and an associated target file,
+and outputs a table of the seed points and the connection probabilities to each target
+region. The output format is
+
+ x y z cp_1 cp_2 ... cp_n
+ x y z cp_1 cp_2 ... cp_n
+
+Where x,y,z are the voxel coordinates of the seed point, and there are n targets in the
+target file. The target regions are numbered in ascending order according to their
+intensity value in the target file.
+
+.SH EXAMPLES
+
+Pass streamlines from the file tracts.Bfloat to \fBprocstreamlines\fR, to produce target
+connection probability images.
+
+  cat tracts.Bfloat | procstreamlines -seedfile seeds.hdr -targetfile targets.hdr -outputcp
+	-outputroot subject_targetcp_
+
+
+The seed file contains two ROIs labelled 1, with m seeds, and 2, with n seeds. The file
+tracts.Bfloat contains streamlines tracked over the both ROIs with \fBtrack\fR. Each seed
+point contains one principal direction.
+
+The above command produces the files
+
+  subject_targetcp_1_[1,2,...,m].[ext]
+  subject_targetcp_2_[1,2,...,n].[ext]
+
+
+We get the target probabilities of these files with
+
+  targetprobs2txt -seedfile seeds.hdr -targetfile targets.hdr -inputroot subject_targetcp_ -regionindex 1
+	> targetprobs_r1.txt
+
+  targetprobs2txt -seedfile seeds.hdr -targetfile targets.hdr -inputroot subject_targetcp_ -regionindex 2
+	> targetprobs_r2.txt
+
+.SH OPTIONS
+
+.TP
+.B \-inputroot\fR <\fIroot\fR>
+
+Root of the connection probability images. This is the path to the files up to (but not
+including) the region index.
+
+.TP
+.B \-seedfile\fR <\fIfile\fR>
+
+The seed file used for the tracking.
+
+.TP
+.B \-targetfile\fR <\fIfile\fR>
+
+The target image.
+
+.TP
+.B \-pd\fR <\fIpd\fR>
+
+Index of the principal direction followed at the seed point. Default is 1.
+
+.TP
+.B \-regionindex\fR <\fIindex\fR>
+
+Index of the ROI in the seed file. Default is 1.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+track(1), procstreamlines(1)
+
+.SH BUGS

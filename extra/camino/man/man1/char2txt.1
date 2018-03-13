@@ -1,0 +1,38 @@
+.\" $Id: char2txt.1,v 1.1 2005/06/15 08:58:26 ucacdxa Exp $
+
+.TH char2txt 1
+
+.SH NAME
+char2txt \- Converts binary char data to text.
+
+.SH SYNOPSIS
+.B char2txt
+
+.SH DESCRIPTION
+Reads binary char data from the standard input and outputs each int as text to the
+standard output. The output is numbers in the range 0-255; unlike byte2txt, which outputs
+numbers in the range -128-127.
+
+.SH EXAMPLES
+
+Output as text the chars stored as binary data in test.char:
+
+cat test.Bchar | char2txt
+
+The output has the form:
+
+ 64
+ 75
+ 128
+ 0
+ 0
+ :
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+byte2txt(1), short2txt(1), byte2txt(1), long2txt(1), double2txt(1), float2txt(1),
+shredder(1).
+
+.SH BUGS

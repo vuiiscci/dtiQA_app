@@ -1,0 +1,475 @@
+#!/bin/bash
+
+# Script file. Takes Analyze input, outputs the following files:
+
+# dxx.hdr        
+# dxy.hdr        
+# dxz.hdr        
+# dyy.hdr        
+# dyz.hdr        
+# dzz.hdr        
+# dl1.hdr
+# dl2.hdr
+# dl3.hdr
+# fa.hdr
+# tr.hdr
+# rd.hdr
+#
+# NOTE: The scale factor of [dl1, dl2, dl3, tr, rd].hdr is 1E12, to give units of 10^6 mm^2 / s 
+# This ASSUMES A SCHEME FILE IN SI UNITS
+# $Id$
+# Author : Philip Cook
+
+
+# You may customize the output by setting the following variables
+
+# Output fractional anisotropy / fa.hdr
+OUTPUT_FA=1
+
+# Output trace(D) / tr.hdr 
+OUTPUT_TR=1
+
+# Output relative anisotropy / ra.hdr
+OUTPUT_RA=0
+
+# Output mean diffusivity / md.hdr
+OUTPUT_MD=0
+
+# Output radial diffusivity / rd.hdr
+OUTPUT_RD=1
+
+# Output 2D FA / 2dfa.hdr
+OUTPUT_2DFA=0
+
+# Output CL / cl.hdr
+OUTPUT_CL=0
+
+# Output CP / cp.hdr
+OUTPUT_CP=0
+
+# Output CS / cs.hdr
+OUTPUT_CS=0
+
+# Output the voxel-order data
+OUTPUT_VO_DATA=0
+
+if [[ $# -eq 0 ]]; then
+    echo "analyzedti <4dimageroot | imagelist> <output root> <schemefile> [-bgthresh <value> -inversion <value> -bgmask <file> -ra -md -rd -cp -cl -cs -2dfa]"
+    exit
+fi
+
+# Raw data file is either an Analyze header or a text file
+DATA=$1
+
+OUTPUT_ROOT=$2
+
+# scheme file is 3rd arg
+SCHEME_FILE=$3
+
+if [[ ! -f ${SCHEME_FILE} ]] ; then
+    echo "Cannot find scheme file ${SCHEME_FILE}"
+    exit 1
+fi 
+
+# Lose the first 3 args now
+shift 3
+
+
+# default output data type for data, .img files
+DATA_TYPE="double"
+DATA_BYTES=8
+
+# 1 if we are using the default above
+DEFAULT_DATA_TYPE=1
+
+# header scale for tensor data
+# Default scales m^2 / s by 10^{12} to give 10^6 * mm^2 / s
+HDR_SCALE=1E12
+
+# Get an array containing elements of $@
+ARG_ARRAY=()
+MAX_ARG_INDEX=0
+
+for i in $@ ; do
+    ARG_ARRAY[${MAX_ARG_INDEX}]=$i;
+    MAX_ARG_INDEX=$((${MAX_ARG_INDEX} + 1))
+    EXITCODE=$?
+done
+
+# Default analyze2voxel behavior is to respect SPM scale
+SPM_SCALE=1
+
+# Set from args if the imagelist is not in the same place as the data
+IMAGE_PREFIX=""
+IMAGE_PREFIX_SET=0
+
+
+# GZIP OUTPUT - if true, do this at the end
+GZIP_OUTPUT=0
+
+# Loop through ARGS, look for data type and other options we need
+# All args not handled here are passed to modelfit, so set args to empty
+# strings after we process them
+for ((i=0; i <= ${MAX_ARG_INDEX} ; i++)) ; do 
+
+    if [[ "${ARG_ARRAY[$i]}" == "-outputdatatype" ]]; then
+        DATA_TYPE=${ARG_ARRAY[$(($i + 1 ))]}
+	DEFAULT_DATA_TYPE=0
+    fi
+
+    # image prefix
+    if [[ "${ARG_ARRAY[$i]}" == "-imageprefix" ]]; then
+        IMAGE_PREFIX=${ARG_ARRAY[$(($i + 1 ))]}
+	IMAGE_PREFIX_SET=1
+		
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	ARG_ARRAY[$(($i+1))]="" # blank this arg
+    fi
+
+    # spm scale
+    if [[ "${ARG_ARRAY[$i]}" == "-ignorespmscale" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	SPM_SCALE=0
+    fi
+
+    # Compute FA
+    if [[ "${ARG_ARRAY[$i]}" == "-fa" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_FA=1
+    fi
+
+    # Compute TR
+    if [[ "${ARG_ARRAY[$i]}" == "-tr" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_TR=1
+    fi
+
+    # Compute MD
+    if [[ "${ARG_ARRAY[$i]}" == "-md" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_MD=1
+    fi
+
+    # Compute RD
+    if [[ "${ARG_ARRAY[$i]}" == "-rd" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_RD=1
+    fi
+
+    # Compute RA
+    if [[ "${ARG_ARRAY[$i]}" == "-ra" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_RA=1
+    fi
+
+    # Compute 2dfa
+    if [[ "${ARG_ARRAY[$i]}" == "-2dfa" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_2DFA=1
+    fi
+
+    # Compute CL
+    if [[ "${ARG_ARRAY[$i]}" == "-cl" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_CL=1
+    fi
+
+    # Compute CP
+    if [[ "${ARG_ARRAY[$i]}" == "-cp" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_CP=1
+    fi
+
+    # Compute CS
+    if [[ "${ARG_ARRAY[$i]}" == "-cs" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_CS=1
+    fi
+
+
+    # GZIP .img files
+    if [[ "${ARG_ARRAY[$i]}" == "-gzip" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	GZIP_OUTPUT=1
+    fi
+
+    # 
+    if [[ "${ARG_ARRAY[$i]}" == "-vodata" ]]; then
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	OUTPUT_VO_DATA=1
+    fi
+
+   
+    # custom header scale for tensor files
+    if [[ "${ARG_ARRAY[$i]}" == "-hdrscale" ]]; then
+        HDR_SCALE=${ARG_ARRAY[$(($i + 1 ))]}
+        ARG_ARRAY[$(($i))]="" # blank this arg
+	ARG_ARRAY[$(($i+1))]="" # blank this arg
+    fi
+
+
+    # Check that -outputfile is not specified
+    if [[ "${ARG_ARRAY[$i]}" == "-outputfile" ]]; then
+	echo "Script does not support -outputfile, specify output root. See analyzedti(1)"
+	exit 1
+    fi
+
+done
+
+
+if [[ ${DEFAULT_DATA_TYPE} -eq 1 ]]; then
+    # add to ARG_ARRAY
+    MAX_ARG_INDEX=$((${MAX_ARG_INDEX} + 2))
+    
+    ARG_ARRAY[$((${MAX_ARG_INDEX} - 1))]="-outputdatatype"
+    ARG_ARRAY[${MAX_ARG_INDEX}]=${DATA_TYPE}
+
+else
+    # Need to set DATA_BYTES 
+    if [[ DATA_TYPE == "byte" ]]; then 
+	echo "Analyze does not support 8-bit signed ints"
+	exit 1
+    elif [[ ${DATA_TYPE} == "char" ]]; then 
+	DATA_BYTES=1
+    elif [[ ${DATA_TYPE} == "short" ]]; then 
+	DATA_BYTES=2
+    elif [[ ${DATA_TYPE} == "int" ]]; then 
+	DATA_BYTES=4
+    elif [[ ${DATA_TYPE} == "float" ]]; then 
+	DATA_BYTES=4
+    elif [[ ${DATA_TYPE} == "long" ]]; then 
+	DATA_BYTES=8
+    elif [[ ${DATA_TYPE} == "double" ]]; then 
+	DATA_BYTES=8
+    else
+	echo "Unrecognized data type ${DATA_TYPE}"
+	exit 1
+    fi
+fi
+
+
+# dt.B${DATA_TYPE}    (tensors)
+DT_FILE="dt.B${DATA_TYPE}"
+
+# dt_eigsys.B${DATA_TYPE}    (eigen system)
+EIG_FILE="dt_eig_sys.B${DATA_TYPE}"
+
+
+# if ${DATA} ends with .hdr, remove it
+DATA=${DATA%.hdr}
+
+# Header file from which we initialize 
+# Default is to assume first arg is 4D image root
+HEADER=${DATA}.hdr
+
+ANALYZE2VOXEL_ARG="-4dimageroot ${DATA}"
+
+# See if there is a file ${DATA}.hdr and ${DATA}.img
+if [[ -f ${DATA}.hdr && -f ${DATA}.img ]] ; then 
+
+    echo "Using Analyze file ${DATA}.hdr as input data"
+    
+elif [[ -f ${DATA} ]] ; then
+
+    echo "Reading image list ${DATA}"
+  
+   
+    if [[ $IMAGE_PREFIX_SET -eq 1 ]] ; then
+	HEADER=${IMAGE_PREFIX}/`head -n 1 ${DATA}`
+    else
+
+        # directory containing the image list, images are in the same place
+	IMAGE_PREFIX=${DATA%/*}/
+	
+	if [[ ${#IMAGE_PREFIX} -lt ${#DATA} ]] ; then 	
+	    HEADER=${IMAGE_PREFIX}`head -n 1 ${DATA}`
+	else
+	    HEADER=`head -n 1 ${DATA}`
+	    IMAGE_PREFIX="./"
+	fi
+    fi
+ 
+    ANALYZE2VOXEL_ARG="-imagelist ${DATA} -imageprefix ${IMAGE_PREFIX}"
+
+    # trim whitespace from beginning / end of file names in image list
+    HEADER=`echo $HEADER | tr -s " "`
+    
+    if [[ `expr $HEADER : '.*\.nii'` -eq 0 ]]; then 
+	# If the DWI images are .hdr / .img files, the imagelist should 
+        # contain .hdr files, but in case they don't, we 
+	# remove .gz and change .img to .hdr
+	HEADER=${HEADER/%\.gz/}
+	HEADER=${HEADER/%\.img/\.hdr}
+    fi 	 
+
+    
+
+else 
+    
+    echo "Can't find image list ${DATA} or header ${DATA}.hdr"
+    exit 1
+
+fi
+
+# Add scale arg if needed
+
+if [[ ${SPM_SCALE} -eq 0 ]]; then
+
+    ANALYZE2VOXEL_ARG="${ANALYZE2VOXEL_ARG} -ignorespmscale"
+
+fi
+
+
+# Do the reconstruction
+# Hoping here that the user did not specify -outputfile
+# (they already specified output root in the command line)
+
+if [[ ${OUTPUT_VO_DATA} -eq 1 ]]; then
+    analyze2voxel ${ANALYZE2VOXEL_ARG} > ${OUTPUT_ROOT}voxelOrder.Bfloat
+
+    cat ${OUTPUT_ROOT}voxelOrder.Bfloat | modelfit -schemefile ${SCHEME_FILE} ${ARG_ARRAY[@]} > ${OUTPUT_ROOT}${DT_FILE}
+
+else
+
+    analyze2voxel ${ANALYZE2VOXEL_ARG} | modelfit -schemefile ${SCHEME_FILE} ${ARG_ARRAY[@]} > ${OUTPUT_ROOT}${DT_FILE}
+
+fi
+
+echo "Reconstruction complete"
+
+analyzeheader -initfromheader ${HEADER} -datatype ${DATA_TYPE} -networkbyteorder -nimages 1 -gl 0 0 -scale 1 -offset 0 > ${OUTPUT_ROOT}scalarHeader.hdr
+
+
+# Exit code, ln(S0)
+
+shredder 0 ${DATA_BYTES} $(( 7 * ${DATA_BYTES} )) < ${OUTPUT_ROOT}${DT_FILE} > ${OUTPUT_ROOT}excode.img
+    
+analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -description "Camino tensor reconstruction exit codes" > ${OUTPUT_ROOT}excode.hdr
+
+shredder ${DATA_BYTES} ${DATA_BYTES} $(( 7 * ${DATA_BYTES} )) < ${OUTPUT_ROOT}${DT_FILE} > ${OUTPUT_ROOT}lns0.img
+    
+analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -description "ln(mean[S(0)]) computed by Camino" > ${OUTPUT_ROOT}lns0.hdr
+
+
+
+# DT elements
+TENSOR_ELEMENTS=(dxx dxy dxz dyy dyz dzz)
+
+for i in 0 1 2 3 4 5; do 
+
+    FILE_ROOT=${TENSOR_ELEMENTS[i]}
+
+    # shred component from dt file
+    shredder $(( (2 + $i) * ${DATA_BYTES} )) ${DATA_BYTES} $(( 7 * ${DATA_BYTES} )) < ${OUTPUT_ROOT}${DT_FILE} > ${OUTPUT_ROOT}${FILE_ROOT}.img
+    
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -scale $HDR_SCALE -description "${FILE_ROOT} computed by Camino" > ${OUTPUT_ROOT}${FILE_ROOT}.hdr
+
+done
+
+echo "DT component images complete"
+
+if [[ ${OUTPUT_FA} -eq 1 ]]; then 
+
+    fa -inputdatatype ${DATA_TYPE} -outputdatatype ${DATA_TYPE} < ${OUTPUT_ROOT}${DT_FILE} > ${OUTPUT_ROOT}fa.img
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -description "FA computed by Camino" > ${OUTPUT_ROOT}fa.hdr
+
+    echo "FA complete"
+
+fi
+
+
+if [[ ${OUTPUT_TR} -eq 1 ]]; then 
+    # Scale trace so that MRICro can read it correctly
+    trd -inputdatatype ${DATA_TYPE} -outputdatatype ${DATA_TYPE} < ${OUTPUT_ROOT}${DT_FILE} > ${OUTPUT_ROOT}tr.img
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -scale $HDR_SCALE -description "Tr(D) computed by Camino" > ${OUTPUT_ROOT}tr.hdr
+    
+    echo "Tr(D) complete"
+
+fi
+
+if [[ ${OUTPUT_MD} -eq 1 ]]; then 
+    # Scale trace so that MRICro can read it correctly
+    md -inputdatatype ${DATA_TYPE} -outputdatatype ${DATA_TYPE} < ${OUTPUT_ROOT}${DT_FILE} > ${OUTPUT_ROOT}md.img
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -scale $HDR_SCALE -description "MD computed by Camino" > ${OUTPUT_ROOT}md.hdr
+    
+    echo "MD complete"
+
+fi
+
+# Eigen system
+# Scale so that MRICro can read it correctly
+
+dteig -inputdatatype ${DATA_TYPE} -outputdatatype ${DATA_TYPE} < ${OUTPUT_ROOT}${DT_FILE} > ${OUTPUT_ROOT}${EIG_FILE}
+
+shredder 0 ${DATA_BYTES} $(( 11 * ${DATA_BYTES} )) < ${OUTPUT_ROOT}${EIG_FILE} > ${OUTPUT_ROOT}dl1.img
+
+analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -scale $HDR_SCALE -description "L1 computed by Camino" > ${OUTPUT_ROOT}dl1.hdr
+
+shredder $(( 4 * ${DATA_BYTES} )) ${DATA_BYTES} $(( 11 * ${DATA_BYTES} )) < ${OUTPUT_ROOT}${EIG_FILE} > ${OUTPUT_ROOT}dl2.img
+
+analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -scale $HDR_SCALE -description "L2 computed by Camino" > ${OUTPUT_ROOT}dl2.hdr
+
+shredder $(( 8 * ${DATA_BYTES} )) ${DATA_BYTES} $(( 11 * ${DATA_BYTES} )) < ${OUTPUT_ROOT}${EIG_FILE} > ${OUTPUT_ROOT}dl3.img
+
+analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -scale $HDR_SCALE -description "L3 computed by Camino" > ${OUTPUT_ROOT}dl3.hdr
+
+
+if [[ ${OUTPUT_RA} -eq 1 ]]; then 
+    
+    dtshape -inputfile ${OUTPUT_ROOT}${EIG_FILE} -stat ra -outputdatatype ${DATA_TYPE} > ${OUTPUT_ROOT}ra.img
+    
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -description "RA computed by Camino" > ${OUTPUT_ROOT}ra.hdr
+    echo "RA complete"
+fi
+
+if [[ ${OUTPUT_2DFA} -eq 1 ]]; then 
+    
+    dtshape -inputfile ${OUTPUT_ROOT}${EIG_FILE} -stat 2dfa -outputdatatype ${DATA_TYPE} > ${OUTPUT_ROOT}2dfa.img
+    
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -description "2D FA computed by Camino" > ${OUTPUT_ROOT}2dfa.hdr 
+    echo "2D-FA complete"
+fi
+
+
+if [[ ${OUTPUT_RD} -eq 1 ]]; then 
+    
+    dtshape -inputfile ${OUTPUT_ROOT}${EIG_FILE} -stat rd -outputdatatype ${DATA_TYPE} > ${OUTPUT_ROOT}rd.img
+    
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -scale $HDR_SCALE -description "Radial diffusivity computed by Camino" > ${OUTPUT_ROOT}rd.hdr 
+    echo "RD complete"
+fi
+
+if [[ ${OUTPUT_CL} -eq 1 ]]; then 
+    
+    dtshape -inputfile ${OUTPUT_ROOT}${EIG_FILE} -stat cl -outputdatatype ${DATA_TYPE} > ${OUTPUT_ROOT}cl.img
+    
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -description "CL computed by Camino" > ${OUTPUT_ROOT}cl.hdr 
+    echo "CL complete"
+fi
+
+if [[ ${OUTPUT_CP} -eq 1 ]]; then 
+    
+    dtshape -inputfile ${OUTPUT_ROOT}${EIG_FILE} -stat cp -outputdatatype ${DATA_TYPE} > ${OUTPUT_ROOT}cp.img
+    
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -description "CP computed by Camino" > ${OUTPUT_ROOT}cp.hdr 
+    echo "CP complete"
+fi
+
+if [[ ${OUTPUT_CS} -eq 1 ]]; then 
+    
+    dtshape -inputfile ${OUTPUT_ROOT}${EIG_FILE} -stat cs -outputdatatype ${DATA_TYPE} > ${OUTPUT_ROOT}cs.img
+    
+    analyzeheader -initfromheader ${OUTPUT_ROOT}scalarHeader.hdr -description "CS computed by Camino" > ${OUTPUT_ROOT}cs.hdr 
+    echo "CS complete"
+fi
+
+
+rm -f ${OUTPUT_ROOT}scalarHeader.hdr
+
+if [[ ${GZIP_OUTPUT} -eq 1 ]]; then  
+    gzip ${OUTPUT_ROOT}${EIG_FILE} ${OUTPUT_ROOT}${DT_FILE} ${OUTPUT_ROOT}*.img
+
+    if [[ ${OUTPUT_VO_DATA} -eq 1 ]]; then
+	gzip ${OUTPUT_ROOT}voxelOrder.Bfloat
+    fi
+fi

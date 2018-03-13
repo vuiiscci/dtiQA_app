@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Runs PASMRI on one voxel's worth of input data.  For use with SGE.
+#
+# $Id: VoxelPAS,v 1.3 2006/04/25 15:50:36 ucacdxa Exp $
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+JAVA=java
+PADDER=${SCRIPTDIR}/StringZeroPad
+
+# PAS parameter, similarly.
+R=1.4
+
+VOXNUM=$1
+DATAFILE=$2
+SCHEMEFILE=$3
+OUTPUTDIR=$4
+shift
+shift
+shift
+shift
+
+VNPAD=`$PADDER $VOXNUM 8`
+OUTPUTFILEPAS=${OUTPUTDIR}/${VNPAD}.Bdouble
+OUTPUTFILEPD=${OUTPUTDIR}/${VNPAD}_PDs.Bdouble
+
+COMPS=`wc -l <$SCHEMEFILE`
+COMPS=$((($COMPS-2)/3))
+
+${SCRIPTDIR}/GetVoxData $DATAFILE $VOXNUM $COMPS | ${SCRIPTDIR}/../bin/mesd -filter PAS $R -schemefile $SCHEMEFILE $* | tee ${OUTPUTFILEPAS} | ${SCRIPTDIR}/../bin/sfpeaks -inputmodel maxent -schemefile $SCHEMEFILE -filter PAS $R > ${OUTPUTFILEPD}

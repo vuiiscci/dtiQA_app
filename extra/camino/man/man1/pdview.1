@@ -1,0 +1,180 @@
+.\" $Id: pdview.1,v 1.2 2006/07/31 19:10:52 ucacpco Exp $
+
+.TH "pdview" 1
+.SH NAME
+pdview \- Visualizes principal direction(s) in each voxel
+
+.SH SYNOPSIS
+.B pdview
+-inputmodel <dteig (default) | pds | pico | ballstick> -datadims <\fIx\fR> <\fIy\fR>
+<\fIz\fR> [-scalarthresh <\fIthreshold\fR>] [-scalarrange <\fImin\fR> <\fImax\fR>]
+[-scalarfile <\fIfile\fR>] -norgb -maxcomponents <\fImax tensors per voxel\fR> | -numpds
+<\fImax peaks per voxel\fR>
+
+.SH DESCRIPTION
+This program displays the principal directions of diffusion tensors or the peak
+directions of spherical functions. The directions are overlaid on a scalar volume, which
+can be computed from the data or loaded from a file.
+
+For tensor data, the program reads the eigen decomposition of a diffusion tensor volume,
+in the format produced by \fBdteig\fR. One or two tensors per voxel may be displayed. If
+there are more than two tensors in a voxel, only the first two PDs are displayed. The
+default scalar background is fractional anisotropy of the tensor (or the mean of the two
+tensors if there are two within the voxel).
+
+For spherical function data, the program reads the output of \fBsfpeaks\fR. If there are
+more than two peaks in a voxel, only the first two PDs are displayed. The default scalar
+background is the trace of the Hessian of the first peak.
+
+For PICo data, the program reads the output of \fBpicopdfs\fR. The default scalar
+background is the sum of the absolute value of the concentration parameters in the voxel.
+The default number of PDFs per voxel is one, a maximum of two may be displayed. The
+default PDF is "bingham".
+
+For ballstick data, the program reads the output of \fBfanninggrid\fR.
+
+The scalar volume can be loaded from a file using the \fB-scalarfile\fR option. The
+scalar values should be positive, and of the same data type as the input data. The scalar
+values are mapped to grey levels according to the range of the data. The contrast range
+can be modified with the \fB-scalarrange\fR option.
+
+The image is colored by the orientation of the PDs, or the mean orientation of the first
+two PDs in multi-fibre voxels. Turn off colors with \fB\-norgb\fR.
+
+The default plane view is axial and the user may switch to sagittal or coronal by
+clicking the buttons at the top of the screen. Next to the plane selection buttons is the
+currently selected slice, with the zoomed area outlined in yellow. Click anywhere on this
+image to centre the zoomed area. The main window shows the zoomed area in larger detail.
+The principal directions in each voxel are drawn as lines.
+
+The default input data type is double.
+
+This program can be used to edit scheme files. To use this function you must specify the
+the scheme file you wish to edit using the \fB-schemefile\fR flag. This will enable the
+scheme file editor buttons. Although the controls allow you to edit your schemefile, they
+do not update the corresponding PDs (or diffusion tensors). If you modify a scheme file,
+you will need to recalculate the PDs or diffusion tensors for the changes to take effect.
+
+.SH EXAMPLES
+
+Run dteig on a 128x128x60 tensor data set, and view the principal directions.
+
+dteig < subjectA.inv1.Bdouble | pdview -datadims 128 128 60 -inputmodel dteig
+
+Read data from the file subjectA.Inv1.eig.Bdouble and display principal directions in
+white matter.
+
+pdview -inputfile subjectA.Inv1.eig.Bdouble -datadims 128 128 60 -scalarthresh 0.15
+-inputmodel dteig
+
+Display principal directions for a multi-tensor volume (see multitenfit(1)).
+
+dteig -inputmodel multitensor < subjectA.Inv32.Bdouble | pdview -datadims 128 128 60
+-maxcomponents 2 -inputmodel dteig
+
+Display output of sfpeaks, but use a tensor FA map as scalar background.
+
+fa < subjectA.Inv1.Bdouble > subjectA.fa.Bdouble
+
+pdview -datadims 128 128 60 -inputmodel pds -scalarfile subjectA.fa.Bdouble <
+subjectA.sfpeaks.Bdouble
+
+Show Watson PICo pdfs
+
+picopdfs -pdf watson -luts watsonLUT -inputfile subjectA.inv1.Bdouble >
+watsonPDFs.Bdouble
+
+pdview -inputmodel pico -pdf watson -datadims 128 128 60 < watsonPDFs.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-datadims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The dimensions of the image, in voxels.
+
+.TP
+.B \-voxeldims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The x, y, and z dimension of each voxel, in millimetres. Not needed for display, but
+necessary to correctly save the RGB data.
+
+.TP
+.B \-inputmodel\fR <\fImodel\fR>
+Either "dteig" (tensor eigensystems, default), "pds" (spherical function peaks),  "pico"
+(PICo PDFs) or "ballstick" (ball and stick partial volume model).
+
+.TP
+.B \-scalarfile\fR <\fIfile\fR>
+Specifies the scalar imaged used as the greyscale image. Either an Analyze / ITK /
+NIFTI-1  image or a raw binary data file. If a header is specified, the \fI-datadims\fR
+and \fB-voxeldims\fR arguments are not necessary and are ignored.
+
+If a binary file is specified, then the data type should be the same as the input data,
+which is double unless otherwise specified with the (\fB\-inputdatatype\fR) option.
+
+Whichever kind of scalar file is used, it should be defined in the same space as the
+diffusion data.
+
+If no scalar file is given, the default background depends on the input model.
+
+.B INPUT MODEL\tSCALAR
+   dteig        fractional anisotropy
+   pds          hessian trace
+   pico         modulus of the mean concentration parameter
+   ballstick    anisotropic mixing fraction
+
+.TP
+.B \-scalarrange\fR <\fImin\fR> <\fImax\fR>
+The minimum and maximum range of scalar values to display as different grey levels. Any
+voxels below the min will be black, those above the max will be white. By default, this
+range is calculated from the data (the smallest and largest 0.5% of scalars are excluded
+from the calculation so that outliers do not reduce the contrast).
+
+.TP
+.B \-scalarthresh\fR <\fIvalue\fR>
+The scalar threshold. The principal direction is not displayed in a voxel unless the
+associated scalar is greater than the specified value. Must be greater than or equal to
+the minimum scalar value specified with \fB\-scalarrange\fR. The default is 0.
+
+.TP
+.B \-maxcomponents\fR <\fImax tensors per voxel\fR>
+Maximum number of tensor components in each voxel, for dteig data. The default is 1.
+
+.TP
+.B \-numpds\fR <\fImax PDs per voxel\fR>
+Maximum number of spherical function peaks in each voxel, for pd data, PICo data and
+ballstick data. The default is 3 for pd data and 1 for the others.
+
+.TP
+.B \-pdf\fR <\fIbingham\fR | \fIwatson\fR | \fIacg\fR>
+PDF type of PICo data. The default is "bingham".
+
+.TP
+.B \-norgb\fR 
+The default behaviour is to colour the scalar image by the components of the PD  (X->R,
+Y->G, Z->B). Use this option to display a grayscale image.
+
+.TP
+.B \-e1 \fR
+Used only for tensor or pico data. Uses the first eigenvector to construct the RGB image,
+ corresponding to the largest eigenvalue of the tensor. This is the default.
+
+.TP
+.B \-e2 \fR
+Used only for tensor or pico data. Uses the second eigenvector to construct the RGB
+image.
+
+.TP
+.B \-e3 \fR
+Used only for tensor or pico data. Uses the third eigenvector to construct the RGB image,
+ corresponding to the smallest eigenvalue of the tensor.
+
+.TP
+.B \-schemefile\fR <\fIScheme file name\fR>
+See modelfit(1).
+
+.SH "AUTHORS"
+Philip Cook, Kiran Seunarine <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+dteig(1), sfpeaks(1)
+
+.SH BUGS

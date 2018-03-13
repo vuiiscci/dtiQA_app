@@ -1,0 +1,189 @@
+
+====================================================
+==           Java Logging functionality           ==
+====================================================
+
+
+------------
+Introduction
+------------
+
+This is a very quick introduction to the basics of using the 
+Logger class that has been part of the Java 2SE core since 1.4.
+Prior to this release, logging was handled by the non-core
+JLogger classes, which have very similar functionality.
+
+A more complete introduction to java logging can be found at:
+http://www.informit.com/articles/article.asp?p=27774&seqNum=9&rl=1
+
+which is a multipart tutorial that will explain the ins and outs 
+of configuring Loggers and the way in which multiple loggers 
+interact. This document instead concentrates on how to include 
+logging in new code so as to be compatible with the logging 
+functionality that is already in place in Camino.
+
+
+-------------------
+What the loggers do
+-------------------
+
+The Logger class performs the task of centralising textual output
+to both the console (i.e. stout & stderr) and to various log files.
+Input to the logger consists of a message string and a parameter called
+a log level. The message can be anything you like, from "opening input 
+file" to "fatal error when calculating cheese factor. program will 
+terminate". The log level is basically a statement of how important the 
+message is, and Loggers can be filtered so that only messages of a given
+priority or higher are entered in the log. This means that debugging 
+messages, which are only of interest to developers, can be kept out of 
+the logfiles and console output that are produced by a user running a 
+package without the need to recompile the code or hunt down every 
+last message you've included. Obviously, there is a (small) performance 
+hit associated with logging and it's worth keeping in mind that 
+creating a slew of messages that are later binned by the logger is not
+really very efficient.
+
+The logger works by recieving messages directly (as well as from other
+loggers, this will be explained later.), filtering them according to 
+the log-level supplied and routing them out accordingly. The exact
+configuration of what message goes where is defined in a configuration
+script, which in our case is in the camino home directory and called 
+logging.properties. 
+
+For new applications that use logging, an extra commandline option for 
+the JVM is required to specify this file:
+
+-Djava.util.logging.config.file=${camino directory}/logging.properties
+
+(see the application wrappers in camino.bin)
+
+BEWARE: if this is not added, the JVM will default to a standard logging
+properties script in the jre/lib directory which DOES NOT INCLUDE A 
+FILEHANDLER, which means that logging output will go to stderr but not 
+be recorded in a log file.
+
+
+
+
+----------------
+Using the logger
+----------------
+
+
+The top-level class of the logging package (java.util.logging) 
+is java.util.logging.Logger . This class contains the functionality
+for sending messages to the logger and for getting hold of an instance
+of it to use in your classes.
+
+Any class using the logger therefore needs the import statement:
+
+import java.util.logging.Logger
+
+at the top of it. The next thing to do is to grab an instance of a
+logger to send messages to. This is done via the static method
+
+public static Logger Logger.getLogger(String loggerName)
+
+where loggerName is, amazingly, the name of the logger you want. This
+name is important and defines the logger's place in a logger hierarchy
+through which messages cascade. Basically, just name it after the class
+that the logger is attached to. So far, this command is invoked like this:
+
+Logger logger=Logger.getLogger("camino."+this.getClass().getName());
+
+when attached to a particular instance of the class in question or like 
+this:
+
+Logger logger=Logger.getLogger("camino.package.classname");
+
+if we're doing logging from a static method that doesn't have a "this" 
+instance.
+
+It's a good idea to get an instance of the logger fairly early on when 
+instantiating a class, so that you don't have to worry about it later.
+
+Once you have an instance of the logger, there are two ways in which you
+can send messages to it, firstly via one of several methods which have a 
+log-level implitly attached to them:
+
+logger.severe(String message)
+logger.warning(String message)
+logger.info(String message)
+logger.config(String message)
+logger.fine(String message)
+logger.finer(String message)
+logger.finest(String message)
+
+which log the given message at the proscribed level. severe messages are 
+things that will actually halt execution, warnings might apply to things
+like non-fatal exceptions or other "interesting" circumstances. Info level
+is for day-to-day messages like "processing voxel...", with config and 
+lower being things that the user might not be interested in but developers
+are.
+
+You can also state a log-level explicitly when logging a message via the log()
+method:
+
+logger.log(Level level, String message)
+
+
+where you can provide a log level via an extensible set of constants 
+Level.SEVERE, Level.WARNING, Level.CONFIG, etc etc. This allows you to set
+up other log levels in-between those already given but this is rarely 
+necessary and not discussed here.
+
+It is recommended that you use logger.severe() etc, since this makes the 
+code easier to read. Furthermore, using logger.info("..."); instead of
+System.err.println("..."); insures that any information that goes to the 
+console is also logged in the logfiles, and that the source method and 
+time of the message is also included, which can be quite useful.
+
+
+One final note on logging is the form to use for logging exceptions. One of
+the advantages of the log files is that if a user finds a bug in the code
+we can ask them to send us the log file and thus track down the bug that much
+more easily. It is therefore quite important that the stack trace from any 
+exception we throw is included in the log. Fortunately, this is very easy to 
+do, and works as follows:
+
+
+	try{
+		someClass.someMethod();
+	}
+	catch(SomeException e){
+		StackTraceElement[] stackTrace = e.getStackTrace();
+		String stackTraceString= new String();
+		
+		for(int i=0; i< stackTrace.length; i++){
+			stackTraceString+=stackTrace[i]+"\n";
+		}
+		
+		logger.severe("some exception thrown by some method:");
+		logger.severe(e+"\n"+stackTraceString);
+	}
+	
+	
+Basically, this bit of code logs the message from the exception as well as
+all levels of the stack trace, which means the information goes to the console
+and, more permanently, to the log file.
+
+
+Logging functionality is also described in the java2SE core class 
+documentation:
+
+http://java.sun.com/j2se/1.4.2/docs/api/java/util/logging/Logger.html
+(no frames link: click on the "frames" link to get at that version)
+
+An example of the use of logging in camino can be seen in apps.MESD.java 
+which is contains all the functionality discussed in this document.
+
+
+
+
+
+matt. 
+(m.hall@cs.ucl.ac.uk)
+
+		
+		
+

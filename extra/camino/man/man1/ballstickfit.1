@@ -1,0 +1,66 @@
+.\" $Id$
+
+.TH ballstickfit 1
+
+.SH NAME
+ballstickfit \- Fits a partial volume model to diffusion MRI measurements.
+
+.SH SYNOPSIS
+.B ballstickfit
+<data file> <scheme file> [options]
+
+.SH DESCRIPTION
+Reads diffusion MRI data, acquired using the acquisition scheme detailed in the scheme
+file, and fits the e ball and stick partial volume model [Behrens et al, MRM
+50:1077-1088, (2003)].
+
+For help with scheme files, please see the section "scheme files" in camino(1).
+
+The data file stores the diffusion MRI data in voxel order with the measurements stored
+as big-endian four-byte floats and ordered as in the scheme file. See modelfit(1) and
+camino(1) for the format of the data file and scheme file. The program fits the diffusion
+tensor to each voxel and outputs the results, in voxel order and as big-endian eight-byte
+doubles, to the standard output. The program outputs eight values in each voxel:
+[exitcode, ln(S(0)), d, f, vx, vy, vz]. The model, as parameterized in Friman et al,
+IEEE-TMI 25:965-978 (2006), is
+
+  S(\fBg\fR_i, b_i) = S(0) [ (1-f) exp(-b_i d) + f exp(-b_i d [\fBg\fR.\fBv\fR]^2) ]
+
+where the wavenumber of measurement i is \fBq\fR_i, the gradient direction \fBg\fR_i =
+\fBq\fR_i / |q_i|, and the b-value b_i is |q_i|^2 t, where t is the diffusion time. The
+measured signal is modelled as a combination of isotropic diffusion (the ball) and
+diffusion along the axis \fBv\fR=[vx, vy, vz] (the stick). The two compartments share a
+common diffusion coefficient, d.
+
+The model parameters are fit to the data using Levenberg-Marquardt optimization. An exit
+code of zero indicates no problems. For a list of other exit codes, see modelfit(1). An
+exit code of 2 indicates an optimization failure; in this case a linear DT fit is
+substituted: f is set to the fractional anisotropy of the DT, d is set to tr(D) / 3, and
+v is the principal eigenvector of the tensor.
+
+
+This program is a simplified wrapper to \fBmodelfit\fR. The command
+
+ ballstickfit SubjectA.Bfloat A.scheme 
+
+is equivalent to
+
+ modelfit -inputfile SubjectA.Bfloat -schemefile A.scheme -inversion -3
+
+To read data from stdin, do:
+
+ cat <data file> | ballstickfit - A.scheme
+
+.SH EXAMPLES
+
+ cat SubjectA.Bfloat | ballstickfit - A.scheme > ballstick.Bdouble
+
+ pdview -inputmodel ballstick -inputfile ballstick.Bdouble
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1)
+
+.SH BUGS

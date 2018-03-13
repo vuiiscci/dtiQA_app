@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+DATASET=$1
+ROOT=${DATASET##*/}
+PATH=${DATASET%/*}
+
+NUMVOX=16384
+if [ $# -ge 2 ]; then
+    NUMVOX=$2
+fi
+SEGMENTS=$((NUMVOX/1000+1))
+
+for((i=0; $i<$SEGMENTS; i=$i+1)); do
+    GPAD=`${SCRIPTDIR}/StringZeroPad $i 5`
+    /bin/cat ${DATASET}/${GPAD}???.Bdouble > /tmp/${GPAD}_${ROOT}.Bdouble
+    /bin/cat ${DATASET}/${GPAD}???_PDs.Bdouble > /tmp/${GPAD}_${ROOT}_PDs.Bdouble
+    echo $GPAD
+done
+
+/bin/cat /tmp/*_${ROOT}.Bdouble > /tmp/${ROOT}.Bdouble
+/bin/cat /tmp/*_${ROOT}_PDs.Bdouble > /tmp/${ROOT}_PDs.Bdouble
+/bin/rm -f /tmp/*_${ROOT}.Bdouble /tmp/*_${ROOT}_PDs.Bdouble
+/bin/mv ${DATASET} /tmp
+/bin/mv /tmp/${ROOT}.Bdouble /tmp/${ROOT}_PDs.Bdouble ${PATH}
+
+
+
+

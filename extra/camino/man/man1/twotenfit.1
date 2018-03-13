@@ -1,0 +1,57 @@
+.\" $Id: twotenfit.1,v 1.4 2006/04/19 13:09:42 ucacpco Exp $
+
+.TH twotenfit 1
+
+.SH NAME
+twotenfit \- Fits two diffusion tensors to diffusion MRI measurements.
+
+.SH SYNOPSIS
+.B twotenfit
+<data file> <scheme file> [-cylsym] 
+
+.SH DESCRIPTION
+Reads diffusion MRI data, acquired using the acquisition scheme detailed in the scheme
+file, from the data file. The data file stores the diffusion MRI data in voxel order with
+the measurements stored as big-endian four-byte floats and ordered as in the scheme file.
+See modelfit(1) for the format of the data file and scheme file. The program fits a pair
+of diffusion tensors to each voxel and outputs the results, in voxel order and as
+big-endian eight-byte doubles, to the standard output. The program outputs seventeen
+values in each voxel: [exitcode, ln(S(0)), m, a_1, D_1xx, D_1xy, D_1xz, D_1yy, D_1yz,
+D_1zz, a_2, D_2xx, D_2xy, D_2xz, D_2yy, D_2yz, D_2zz]. An exit code of zero indicates no
+problems. For a list of other exit codes, see modelfit(1). The entry S(0) is an estimate
+of the signal at q=0; m is the number of fitted components, which is always 2 here; a_1
+is the mixing parameter of D_1, a_2 is that for D_2.
+
+By default, the program constrains the two diffusion tensors only to be positive
+definite. The program can also constrain the diffusion tensors to have cylindrical
+symmetry (two equal eigenvalues). This program is a simple interface to the program
+modelfit. The modelfit program provides more options for fitting pairs of diffusion
+tensors.
+
+If the first command line argument is - the program reads data from the standard input.
+
+.SH EXAMPLES
+Fit two positive-definite diffusion-tensors to the data in SubjectA.Bfloat:
+
+twotenfit SubjectA.Bfloat A.scheme > TwoTensorA.Bdouble
+
+Equivalently:
+
+cat SubjectA.Bfloat | twotenfit - A.scheme > TwoTensorA.Bdouble
+
+Fit two cylindrically symmetric positive-definite diffusion tensors:
+
+twotenfit SubjectA.Bfloat A.scheme -cylsym > TwoTensorA.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-cylsym
+Constrain the diffusion tensors to have cylindrical symmetry.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), dtfit(1), threetenfit(1), fa(1), trd(1), shfit(1), shanis(1)
+
+.SH BUGS

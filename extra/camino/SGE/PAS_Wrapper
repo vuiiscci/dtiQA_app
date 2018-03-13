@@ -1,0 +1,12 @@
+#!/bin/csh
+
+# Wrapper to call the right bash script from an SGE job.
+#
+# $Id: PAS_Wrapper,v 1.2 2006/03/09 11:20:25 ucacdxa Exp $
+
+set BASE=/home/ucacdxa/camino
+
+cd $BASE
+
+SGE/VoxelPAS $*
+

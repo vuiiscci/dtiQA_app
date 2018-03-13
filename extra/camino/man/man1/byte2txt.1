@@ -1,0 +1,49 @@
+.\" $Id: byte2txt.1,v 1.2 2006/04/20 12:54:33 ucacdxa Exp $
+
+.TH byte2txt 1
+
+.SH NAME
+byte2txt \- Converts binary byte data to text.
+
+.SH SYNOPSIS
+.B byte2txt [\fB-linenum\fR] [\fB-components\fR <\fIN\fR>]
+
+.SH DESCRIPTION
+Reads binary byte data from the standard input and outputs each int as text to the
+standard output. The output is numbers in the range -128-127; unlike char2txt, which
+outputs numbers in the range 0-255.
+
+.SH EXAMPLES
+
+Output as text the bytes stored as binary data in test.byte:
+
+cat test.Bbyte | byte2txt
+
+The output has the form:
+
+  64
+  75
+ -128
+  0
+  0
+  :
+
+.SH OPTIONS
+
+.TP
+.B \-linenum
+Print line numbers in output.
+
+.TP
+.B \-components\fR <\fIN\fR>
+Assume output is voxel data with \fIN\fR components. Output will be annotated with voxel
+number and component number.
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+char2txt(1), short2txt(1), byte2txt(1), long2txt(1), double2txt(1), float2txt(1),
+shredder(1).
+
+.SH BUGS

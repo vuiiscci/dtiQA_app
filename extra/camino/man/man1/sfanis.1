@@ -1,0 +1,100 @@
+.\" $Id: sfanis.1,v 1.8 2006/07/24 15:44:43 ucacdxa Exp $
+
+.TH "sfanis" 1
+
+.SH NAME
+sfanis \- Computes an index of anisotropy of spherical functions.
+
+.SH SYNOPSIS
+.B sfanis -inputmodel <sh|rbf|maxent>
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+Computes the anisotropy of any input spherical function.  The anisotropy of a function f
+is sqrt(int(f(x) - F)^2/int(f^2(x))) where F = \int(f(x)) and the integrals are all over
+the unit sphere. For functions represented as spherical harmonic series, the calculation
+uses an analytic expression and is very fast to compute. For other representations, the
+program approximates the integrals by summing over a set of around 8000 points evenly
+distributed on the sphere. To decrease computation time, the size of the point set can be
+reduced using the -pointset option.
+
+.SH EXAMPLES
+
+Here are some examples using synthetic data.
+
+Create a synthetic data set:
+
+datasynth -testfunc 3 -snr 16 -voxels 4 -schemefile test/bmx7.scheme > T3_BMX7.Bfloat
+
+
+Fit the spherical harmonics with maximum order 2 and compute the anisotropy:
+
+shfit -order 2 -schemefile test/bmx7.scheme < T3_BMX7.Bfloat | sfanis -inputmodel sh
+-order 2 | double2txt
+
+ 2.588603E-01
+ 2.597550E-01
+ 2.537685E-01
+ 2.980303E-01
+
+Try with maximum order 4: shfit -order 4 -schemefile test/bmx7.scheme < T3_BMX7.Bfloat |
+sfanis -inputmodel sh -order 4 | double2txt
+
+ 2.983556E-01
+ 3.064308E-01
+ 2.876707E-01
+ 3.385700E-01
+
+Repeat using PASMRI: mesd -filter PAS 1.4 -schemefile test/bmx7.scheme < T3_BMX7.Bfloat |
+sfanis -inputmodel maxent -filter PAS 1.4 -mepointset 54 | double2txt
+
+ 9.936683E-01
+ 9.938231E-01
+ 9.579966E-01
+ 9.970216E-01
+
+Repeat using QBALL: qballmx -schemefile test/bmx7.scheme > /tmp/bmx7_QBALLMX.Bdouble
+linrecon T3_BMX7.Bfloat test/bmx7.scheme /tmp/bmx7_QBALLMX.Bdouble -normalize | sfanis
+-inputmodel rbf -rbfpointset 246 -rbfsigma 0.2617993877991494 -schemefile
+test/bmx7.scheme | double2txt 1.049307E-01 1.180261E-01 1.087973E-01 1.186283E-01
+
+And spherical harmonic q-ball qballmx -schemefile test/bmx7.scheme -basistype sh -order 4
+> /tmp/bmx7_QBALLMX.Bdouble linrecon T3_BMX7.Bfloat test/bmx7.scheme
+/tmp/bmx7_QBALLMX.Bdouble -normalize | sfanis -inputmodel sh -order 4 -schemefile
+test/bmx7.scheme | double2txt 1.204591E-01 1.364328E-01 1.265906E-01 1.379158E-01
+
+.SH OPTIONS
+.TP
+.B \-inputmodel\fR <\fIsh|rbf|maxent|dt\fR>
+Tells the program what type of functions are input.  Currently supported options are:
+
+sh - Spherical harmonic series. (Must specify -order.)
+
+maxent - Maximum entropy representations output by mesd. (Must specify -filter and
+-mepointset.)
+
+rbf - Sums of radial basis functions. (Must specify rbf parameters, eg -rbfsigma, and
+-rbfpointset.)
+
+.TP
+.B \-pointset\fR <\f0|1|2|3|4|5|6|7\fR>
+Choose the point set used for the numerical integration.  The point sets have sizes:
+
+ 0 - 1082
+ 1 - 1922
+ 2 - 4322
+ 3 - 8672
+ 4 - 15872
+ 5 - 32672
+ 6 - 72032
+ 7 - 78032
+
+The default is point set 3.
+
+.SH "SEE ALSO"
+fa(1), shfit(1), qballmx(1), mesd(1), sfskewness(1), sfkurtosis(1)
+
+.SH BUGS
+
+.SH AUTHOR
+Danny Alexander <camino@cs.ucl.ac.uk>

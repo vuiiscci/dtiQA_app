@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Wrapper for the java program WriteZeros.java.  Just sets the class path
+# and sends all the command line arguments directly to the java
+# program.
+# 
+# The first command line argument specifies the number of zeros to write.
+# Other possible option is -outputdatatype.  Default is double.
+# 
+# $Id: WriteZeros,v 1.1 2006/02/24 17:11:54 ucacdxa Exp $
+
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+# The desired classpath is the parent directory of the directory
+# containing the script.
+export CLASSPATH=${SCRIPTDIR}/..
+exec java -Djava.util.logging.config.file=${SCRIPTDIR}/../logging.properties apps/WriteZeros $*

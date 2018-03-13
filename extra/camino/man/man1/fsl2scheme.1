@@ -1,0 +1,129 @@
+.\" $Id: fsl2scheme.1,v 1.3 2006/04/20 12:54:34 ucacdxa Exp $
+
+.TH fsl2scheme 1
+
+.SH NAME
+fsl2scheme \- converts b-vectors and b-values from FSL format to a Camino scheme file. 
+
+.SH SYNOPSIS
+.B fsl2scheme 
+\fB\-bvecsfR <\fIbvecs\fR> \fB\-bvals\fR <\fIbvals\fR> \fB\-diffusiontime\fR
+<\fIsecs\fR>
+
+ \fB\-bscale\fR <\fIfactor\fR> [-flipx] [-flipy] [-flipz] [-usegradmod]
+
+
+.SH DESCRIPTION
+
+This program reads gradient directions and b-values in FSL format and creates a Camino
+scheme file.
+
+The output is a BVECTOR scheme file:
+
+ VERSION: BVECTOR
+ g_x g_y g_z b
+ ...
+ g_x g_y g_z b
+
+A gradient vector [g_x, g_y, g_z] is stored for each measurement, along with a b-value. 
+These vectors will be normalized to unity automatically for b > 0 measurements. If b = 0, 
+the gradient direction may be [0 0 0].
+
+Some Camino programs require b-values to be specified in SI units, which can be done by 
+scaling by a constant using the \fB-bscale\fR option. By default, no scaling is applied,
+so units of diffusivity in DTI will be the same as in FSL's dtifit.
+
+The b-values may additionally be scaled by the gradient direction magnitude. Some
+scanners will factor the gradient magnitude into the b-value. This is normally taken care of
+when the bvec / bval file is generated from the DICOM data, but if not, use the \fB-usegradmod\fR
+option. The gradient directions will still be normalized to unity in the output, and the
+b-value will be scaled appropriately.
+
+
+
+.SH EXAMPLES
+
+Create a scheme file, keeping the b-values in native units.
+
+   fsl2scheme -bvecfile bvecs -bvalfile bvals > A.scheme
+
+Create a scheme file for a scan that is repeated twice
+
+   fsl2scheme -bvecfile bvecs -bvalfile bvals -bscale 1 -numscans 2 > A.scheme
+
+
+.SH OPTIONS
+
+.TP
+.B \-bvecfile\fR <\fIbvecs\fR> 
+The file containing the b-vectors. This is a text file of format
+
+ x(1) x(2)... x(N+M)
+ y(1) y(2) ... y(N+M)
+ z(1) z(2) ... z(N+M)
+
+where the gradient direction for measurement (i) is [x(i), y(i), z(i)], and there are M
+unweighted and N diffusion-weighted measurements. A transpose of the above format may also
+be used.
+
+.TP
+.B \-bvalfile\fR <\fIbvals\fR>
+The file containing the b-values. This is a text file of format
+
+b(1) b(2) ... b(N+M)
+
+where there are M unweighted (b = 0) and N diffusion-weighted measurements.
+
+.TP
+.B \-bscale\fR <\fIfactor\fR>
+Scaling factor to convert the b-values into different units. 
+
+.TP
+.B \-flipx\fR 
+Negate the x component of all the vectors.
+
+.TP
+.B \-flipy\fR 
+Negate the y component of all the vectors.
+
+.TP
+.B \-flipz\fR 
+Negate the z component of all the vectors.
+
+.TP
+.B \-interleave\fR
+Interleave repeated scans. Only used with \fB-numscans\fR. If this is selected, the
+output will be interleaved, so you will have measurement 0 repeated numScans times, then
+measurement 1, etc.
+
+.TP
+.B \-zerobval\fR <\fIval\fR>
+Set an effective zero b-value, input b-values less than or equal to this are set to zero
+in the output. This is needed for some Camino programs that normalize the input data by 
+dividing each measurement by the mean b=0 measurement.
+
+This value is tested after any applicable scaling is applied to the bvals.
+
+.TP
+.B \-numscans\fR <\fInumber\fR>
+Output all measurements \fInumber\fR times, used when combining multiple scans from the
+same imaging session. The default behaviour is to repeat the entire block of
+measurements, like you'd get from copying and pasting the scheme \fInumber\fR times. If
+\fB-interleave\fR is specified, then identical measurements are grouped together.
+
+.TP
+.B \-usegradmod\fR 
+Use the gradient magnitude to scale b. This option has no effect if your gradient
+directions have unit magnitude. It should only be used if the actual diffusion weighting 
+is encoded in the gradient direction vector magnitude as well as the b-value. If the gradient 
+directions have magnitude |g| = sqrt(g_x^2 + g_y^2 + g_z^2), and the nominal b-value is beta, 
+then the actual b-value is beta * |g|^2.
+
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+camino(1)
+
+.SH BUGS

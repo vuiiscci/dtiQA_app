@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Cuts out a single voxel's worth of data from the data on the input
+# stream.
+# 
+# $Id: GetVoxData,v 1.1 2006/02/24 17:11:52 ucacdxa Exp $
+
+
+FILENAME=$1
+VOXNUM=$2
+COMPONENTS=$3
+
+SCRIPTDIR=${0%/*}
+
+SHREDDER=$SCRIPTDIR/../bin/shredder
+
+BYTESPERVAL=4
+
+$SHREDDER $(($COMPONENTS*$BYTESPERVAL*$VOXNUM)) $(($COMPONENTS*$BYTESPERVAL)) 100000000  < $FILENAME
+

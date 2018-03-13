@@ -1,0 +1,69 @@
+.TH averagedwi 1
+
+.SH NAME
+averagedwi \- Create an average DWI image over some or all of the data.
+
+.SH SYNOPSIS
+.B averagedwi -inputfile <\fRdwi\fR> [\fIoptions\fR]
+
+
+ 
+.SH DESCRIPTION
+
+Computes an average DWI image from input data. The average may be computed over all
+the data or over particular shells defined by a range of b-values.
+
+For example, the average b=0 image can serve as a reference for motion correction. Alternatively,
+the mean or median DWI at some b-value can be useful for normalization to a structural image.
+
+The user may select the b-values over which to average. This allows the selection of subsets of
+multi-shell data, or to select a single shell where the actual b-values vary from their nominal
+value. 
+
+
+.SH OUTPUT
+
+A voxelwise average (mean or median) of the selected DWI data.
+
+
+.SH EXAMPLES
+
+Get the average of all the measurements
+
+  averagedwi -inputfile dwi.nii.gz -schemefile A.scheme > mean_all.Bfloat
+
+
+Get only DWI measurements on a shell at b=1000, given variation in diffusion weighting actually
+achieved by the scanner varies by +/- 20 s / mm^2:
+
+  averagedwi -inputfile dwi.nii.gz -schemefile A.scheme -minbval 990 -maxbval 1010 -outputfile mean_b1000.nii.gz
+
+
+.SH OPTIONS
+
+.TP
+.B \-schemefile\fR 
+Scheme file for the complete imaging scheme. 
+
+.TP
+.B \-minbval\fR <\fImin\fR> 
+Minimum b-value to include in the average. Default 0. In the same units as the scheme file.
+
+.TP
+.B \-maxbval\fR <\fImax\fR> 
+Maximum b-value to include in the average. Default infinity (include all b-values). In the same units as 
+the scheme file.
+
+.TP
+.B \-median\fR
+Output the median rather than the mean of the selected volumes. Requires more memory.
+
+
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+split4dnii(1)
+
+.SH BUGS

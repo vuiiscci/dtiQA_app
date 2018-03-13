@@ -1,0 +1,161 @@
+.\" $Id$
+
+.TH rgbscalarimg 1
+
+.SH NAME
+rgbscalarimg \- Create an RGB image from diffusion peak directions, modulated by a scalar
+image (eg, anisotropy).
+
+.SH SYNOPSIS
+.B rgbscalarimg
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+
+This program provides a command line method to get an RGB color-coded image similar to
+the one displayed in \fBpdview\fR. The RGB color triplet for each pixel comes from the
+absolute value of the specified eigenvector (for tensor eigensystem or PICo data) or the
+spherical function peak direction (for PAS / QBall data), so:
+
+    |x| = r
+    |y| = g 
+    |z| = b
+
+Each color channel is scaled by a scalar value. For tensor data, the default scalar is
+fractional anisotropy, so the scaling is naturally between 0 and 1. If another scalar
+image is used, the intensities are normalized and then used to scale the RGB data. When
+reading the output of \fBsfpeaks\fR, the default scalar is the trace of the Hessian of
+the strongest peak. The user may pass any scalar image that has identical dimensions to
+the diffusion data. The scalar multiplication is applied after the RGB is calculated and
+RGB gamma correction is applied, thus if you pass \fB-rgbgamma 0.0\fR the output is
+greyscale and the contrast is the same as the scalar image.
+
+If the scalar file passed to the program is an image header, the voxel and data
+dimensions are read from the header and the \fB\-voxeldims\fR and \fB\-datadims\fR
+arguments can be omitted.
+
+The output is either in NIfTI, MetaImage (ITK) or VTK format. The output may be
+visualized in ITK SNAP.
+
+Because of inconsistent RGB support in various programs (notably Paraview, which won't
+read RGB NIfTI), you may output the image in a different format from the input image, and
+for this reason you should specify \fb-outputfile\fR and not the usual \fB-outputroot\fR.
+If you change formats, there is no guarantee that the voxel to physical transform of the
+image will be properly translated.
+
+.SH EXAMPLES
+
+Get the RGB map modulated by FA from tensor data.
+
+  dteig < tensors.Bdouble | rgbscalarimg -datadims 128 128 60 -voxeldims 1.7 1.7 2.3 -outputfile rgb.mha
+
+
+The same thing, but using precomputed scalar data.
+
+  rgbscalarimg -scalarfile fa.nii -outputfile rgb.nii -inputfile dt_eig_sys.Bdouble
+
+
+The same thing, but output the RGB map for e2, the second eigenvector
+
+  rgbscalarimg -scalarfile fa.nii -outputfile rgb_e2.nii -inputfile dt_eig_sys.Bdouble -e2
+
+
+Output an MHA image from NIfTI input (dangerous - may lead to incorrect transforms in the
+header)
+
+  rgbscalarimg -scalarfile fa.nii -outputfile rgb.mha -inputfile dt_eig_sys.Bdouble
+
+.SH OPTIONS
+
+.B \-datadims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The dimensions of the image, in voxels.
+
+.TP
+.B \-voxeldims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The x, y, and z dimension of each voxel, in millimetres. 
+
+.TP
+.B \-inputmodel\fR <\fImodel\fR>
+Either "dteig" (tensor eigen systems, default), "pds" (spherical function peaks) or
+"pico"	(output of \fBpicopdfs\fR).
+
+.TP
+.B \-scalarfile\fR <\fIfile\fR>
+Either an Analyze / ITK / NIFTI-1 header file or a binary file. If an image header is
+specified,  the \fB-datadims\fR and \fB-voxeldims\fR arguments are not necessary and are
+ignored.
+
+If a binary file is specified, then the data type should be the same as the input data,
+which is double unless otherwise specified with the (\fB\-inputdatatype\fR) option.
+
+Whichever kind of scalar file is used, it should be defined in the same space as the
+diffusion data.
+
+If no scalar file is given, the default is fractional anisotropy (tensor eigen system
+data) or Hessian trace (spherical function peaks).
+
+.TP
+.B \-scalarrange\fR <\fImin\fR> <\fImax\fR>
+The minimum and maximum range of scalar values to display as different grey levels. Any
+voxels below the min will be black, those above the max will be white. By default, this
+range is calculated from the data (the smallest and largest 0.5% of scalars are excluded
+from the calculation so that outliers do not reduce the contrast).
+
+.TP
+.B \-maxcomponents\fR <\fImax tensors per voxel\fR>
+Maximum number of tensor components in each voxel, for dteig data. The default is 1.
+
+.TP
+.B \-numpds\fR <\fImax PDs per voxel\fR>
+Maximum number of spherical function peaks in each voxel, for pd or PICo data. The
+default is 3 for pd data and 1 for PICo data.
+
+.TP
+.B \-outputfile\fR <\fIfile\fR>
+Output file, extension determines type.
+
+.TP
+.B \-gsgamma\fR <\fIg\fR>
+Gamma correction for the scalar image. The scalars are mapped between 0 and 1. Then
+I(out) = I(in)^g. Default is 1.0.
+
+.TP
+.B \-rgbgamma\fR <\fIg\fR>
+Gamma correction for the RGB image. [r|g|b](out) = [r|g|b](in)^g. Default is 1.0. Set
+this to 0.0 to get a greyscale image.
+
+.TP
+.B \-pdf\fR <\fIbingham\fR | \fIwatson\fR | \fIacg\fR>
+PDF type of PICo data. The default is "bingham".
+
+                   
+.TP
+.B \-e1 \fR
+Used only for tensor or pico data. Uses the first eigenvector to construct the RGB image,
+ corresponding to the largest eigenvalue of the tensor. This is the default.
+
+.TP
+.B \-e2 \fR
+Used only for tensor or pico data. Uses the second eigenvector to construct the RGB
+image.
+
+.TP
+.B \-e3 \fR
+Used only for tensor or pico data. Uses the third eigenvector to construct the RGB image,
+ corresponding to the smallest eigenvalue of the tensor.
+
+.TP
+.B \-bgmask\fR <\fIbrainmask\fR>
+Used for NIfTI image output only; uses the brain mask to set transparency (background
+voxels are  transparent). Has no effect on VTK or MHA data. If this option is used, NIfTI
+output has type RGBA (32-bit) rather than the usual RGB (24-bit).
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+dteig(1), sfpeaks(1), pdview(1)
+
+.SH BUGS
+
+No alpha support for VTK or MetaIO output.

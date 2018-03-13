@@ -1,0 +1,63 @@
+.\" $Id$
+
+.TH dt2mha 1
+
+.SH NAME
+dt2mha \- Converts Camino tensors to mha files.
+
+.SH SYNOPSIS
+\fBdt2mha\fR -inputfile <\fIfile\fR> -outputroot <\fIroot\fR> -header <\fIheader\fR> 
+
+.SH EXAMPLES
+
+Straight pipeline
+
+    cat data.Bfloat | dtfit - schemefile | dt2mha -header image.mha -outputroot camino_
+
+
+Convert an existing tensor file dt.Bfloat
+
+    dt2mha -inputfile dt.Bfloat -inputdatatype float -header image.mha -outputroot camino_
+ 
+
+.SH DESCRIPTION
+
+Reads Camino diffusion tensors, and converts them to MHA format. The output is three mha
+files:
+
+   
+  ${root}dt.mha - diffusion tensors.
+  ${root}exitcode.mha - exit codes from Camino reconstruction.
+  ${root}lns0.mha - estimated lns0 from Camino reconstruction.
+
+The supplied mha header (which may or may not be attached to an image) is used to
+initialize MHA header fields for the output. The header should correctly describe the
+physical space of the tensor image.
+
+The output data type can be set at run time.
+
+.SH OPTIONS
+
+.TP
+.B \-outputroot\fR <\fIroot\fR>
+Prepended onto output file names.
+
+.TP
+.B \-header\fR <\fIheader\fR>
+An mha file to use as the header. Usually this will be the header of the raw data file
+from which the diffusion tensors were reconstructed.
+
+.TP
+.B \-outputdatatype\fR <\fItype\fR>
+Overrides the defaut output data type of "float" for all images.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+analyzedti(1)
+
+.SH BUGS
+
+It is not clear how MHA files should be compressed, so use of the -gzip option is not
+recommended.

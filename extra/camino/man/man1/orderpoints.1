@@ -1,0 +1,125 @@
+.\" $Id$
+
+.TH orderpoints 1
+
+.SH NAME
+orderpoints \- Order points such that a partial scan has evenly spaced gradient
+directions
+
+.SH SYNOPSIS
+.B orderpoints \fR [-options]
+
+-inputfile <file> | -numpoints <number> -seed <seed> -temperature <initial temp>
+-coolingfactor <epsilon> -trialsbetweencooling <trials> [-savestate <root>]
+
+ 
+.SH DESCRIPTION
+
+This program takes as input a set of N gradient directions and searches for an ordering
+that minimizes the electrostatic energy of the first P (where 5 < P < N) directions,
+i.e., we want any partial set of P directions to be as evenly spread on the sphere as
+possible. This allows us to get the best possible result from a partial scan without
+altering the complete scan. The complete set of directions is not changed, so if the scan
+is fully completed, the results are still optimal. If you use this program in your
+research please cite P A Cook, M R Symms, P A Boulby, D C Alexander, "Optimal acquisition
+orders of diffusion-weighted MRI measurements", Journal of Magnetic Resonance Imaging
+25(5):1051-1058, 2007.
+
+.SH OPTIMIZATION
+
+The program uses simulated-annealing optimization to search for the best configuration.
+By default, the annealing schedule is calibrated automatically, though each of the
+annealing parameters may be changed at run time. The calibration of the temperature is
+done by finding a local minimum from a random initial configuration, and then calculating
+the mean increase in energy of subsequent random configuration changes. The temperature
+is set such that a configuration that increases the energy by the mean amount has a 70%
+chance of being accepted.
+
+Each candidate configuration change involves swapping two points that are in different
+subsets. The change is accepted or rejected depending on the difference in energy of the
+new configuration E_1 and the old configuration E_0 and the temperature T. We generate a
+random number alpha from the uniform distribution U[0,1]. The probability of accepting
+the configuration change is then
+
+	p = max { 1.0, exp[-(E_1 - E_0) / T)] }
+
+After n = 1000 attempted configuration changes, the temperature T is lowered to T(1-e),
+where e = 10^{-7}. Custom values of the temperature T, the cooling factor e and the
+number of trials n may be specified on the command line. The defaults have been chosen to
+give consistently good results over a range of different problems. To speed up an
+optimization, setting e = 1E-6 is the recommended option.
+
+.SH OUTPUT
+
+The output is the ordered point set, saved as a text file. Because the optimization takes
+a long time, the program saves its state approximately every hour to two files. The root
+file name is specified by the option \fB-savestate\fR. The file root.state contains the
+current state of the system, the file root.lowestEnergy contains the lowest energy state
+found so far.
+
+A run may be resumed from a saved state by using the \fB\-resume\fR option. See OPTIONS.
+
+The first line of the output contains information about the state of the system. The
+format is: <number of points> <temperature when file was written> <energy>.
+
+.SH EXAMPLES
+
+Order a 60-direction set.
+
+orderpoints -numpoints 60 -savestate ./elec60_ordered > elec60_ordered.txt
+
+Start ordering from points in a file. Point sets in files must be in one of the formats
+readable by pointset2scheme (see pointset2scheme(1)).
+
+cat mypoints.txt | orderpoints -savestate ./mypoints_ordered > mypoints_ordered.txt
+
+By default, points supplied from a file are initialized in the order they are read. This
+can be changed with the \fB\-randominit\fR option.
+
+cat mypoints.txt | orderpoints -randominit -savestate ./mypoints_ordered >
+mypoints_ordered.txt
+
+.SH OPTIONS
+
+.TP
+.B \-numpoints\fR <\fIN\fR>
+The total number of points. If this option is specified, then the point set is Camino's
+electrostatic point set containing \fIN\fR points. It is not required if the point set is
+supplied from a file.
+
+.TP
+.B \-savestate\fR <\fIroot\fR>
+Saves the current state of the system to the file root.state and the best configuration
+found so far to the file root.lowestEnergy, approximately once per hour.
+
+.TP
+.B \-resume\fR <\fIstate\fR>
+Resume the optimization from the file \fIstate\fR. This option is used to resume  the
+optimization from a previous configuration.
+
+.TP
+.B \-coolingfactor\fR <\fIfactor\fR>
+Determines how quickly the system will cool from the initial temperature. The default is
+1E-7.
+
+.TP
+.B \-temperature\fR <\fIt\fR>
+The initial temperature of the system. By default, this is calibrated automatically. The
+program will terminate when the temperature falls below 1E-8.
+
+.TP
+.B \-trialsbetweencooling\fR <\ftrials\fR>
+Number of configuration changes to attempt between successive coolings. Default is 1000.
+
+.TP
+.B \-randominit\fR 
+Randomly order a point set read from a file. If the point set is specified with the
+\fB-numpoints\fR option, the random initialization is always done.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+subsetpoints(1), pointset2scheme(1)
+
+.SH BUGS

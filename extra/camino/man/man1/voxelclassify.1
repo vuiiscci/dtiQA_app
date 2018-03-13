@@ -1,0 +1,86 @@
+.\" $Id: voxelclassify.1,v 1.5 2005/10/19 18:13:47 ucacdxa Exp $
+
+.TH "voxelclassify" 1
+.SH NAME
+voxelclassify \- Classifies voxels according to the lowest-order spherical harmonic
+series needed to fit the data adequately.
+
+.SH SYNOPSIS
+.B voxelclassify 
+[-bgthresh <value>] [-csfthresh <maxA0>] [-order <maxOrder>]  [-ftest <thresholds>]
+
+.SH DESCRIPTION
+Computes the spherical harmonic expansion of log(A(q)) in each voxel and uses an F-test
+to determine the simplest model that gives a good fit to the data.
+
+If F-test thresholds are specified, the program performs the F-Test and outputs the
+highest spherical harmonic order required to fit the data: 0 for isotropic data, 2 for
+anisotropic Gaussian, and 4 or more (up to the maximum) for anisotropic non-Gaussian
+data. Voxels classified as background (see OPTIONS) have order -1.
+
+If no f-test thresholds are specified on the command line, the program outputs all the
+f-statistics in each voxel for independent processing. These results are suitable for
+reading into the vcthreshselect program for interactive model selection. The format of
+the output for each voxel is:
+
+ exit code
+ log b=0 intensity estimate
+ f statistic comparing order 0 and order 2 models
+ f for order 0 and 4
+ :
+ f for order 0 and n where n is the maximum order specified
+ f for order 2 and 4
+ :
+ f for order 2 and n
+ :
+ f for order n-2 and n
+
+.SH OPTIONS
+.TP
+.B \-ftest\fR <\fIthresholds\fR>
+Specifies the F-test thresholds for adopting higher order models. A threshold must be
+provided for every order between 0 and the maximum order. The program will not consider a
+higher order model unless the result of the F-test is smaller than the relevant
+threshold.
+
+.TP
+.B \-bgthresh\fR <\fIminA0\fR>
+Classifies all voxels with A(0) < minA0 as background, without performing the F-test on
+the voxel. Ignored if -ftest is not specified.
+
+.TP
+.B \-csfthresh\fR <\fImaxA0\fR>
+Classifies all voxels with A(0) > maxA0 as isotropic, without performing the F-Test on
+the voxel. Ignored if -ftest is not specified.
+
+.TP 
+.B \-bgmask \fR <\fIimage\fR>
+Set an explicit brain / background mask. Overrides -bgthresh.
+
+.TP
+.B \-order\fR <\fImaxOrder\fR> 
+Set the maximum even spherical harmonic order that will be considered by the program.
+Must be a positive even number. Default is 4.
+
+.SH EXAMPLES
+
+Classify the data in image SubjectA.Bfloat, using no csf threshold. Classify all voxels
+with A(0) < 50.0 as background. The threshold for selecting an order 2 model is 1E-20,
+the thresholds for the order 4 and 6 model are 1E-6.
+
+voxelclassify -inputfile SubjectA.Bfloat -bgthresh 50.0 -schemefile A.scheme -order 6
+-ftest 1E-20 1E-6 1E-6 > SubjectA.VC.Bint
+
+The next example does the same thing, but because no -ftest is specified, the program
+outputs the raw F-Test data for later analysis (eg with vcthreshselect(1)).
+
+voxelclassify -inputfile SubjectA.Bfloat -schemefile A.scheme -order 6 >
+SubjectA.VCthresholds.Bdouble
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+vcthreshselect(1)
+
+.SH BUGS

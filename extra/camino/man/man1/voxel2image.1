@@ -1,0 +1,77 @@
+.\"$Id$
+
+.TH voxel2image 1
+
+.SH NAME
+voxel2image \- Converts voxel-order data to a series of 3D images.
+
+.SH SYNOPSIS
+.B voxel2image \fR -outputroot <\fIroot\fR> -header <\fIheader\fR> -components <\fIN\fR> [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+Converts voxel-order data files to 3D images, given a header with the same data
+dimensions as the input data.
+
+This program converts each component of the input data to a separate to 3D image. To
+export diffusion tensors, see dt2nii(1).
+
+.SH EXAMPLES
+
+Convert the components of the diffusion tensor eigen system.
+
+  cat dt.Bdouble | dteig | voxel2image -components 12 -outputroot dteig_ \ 
+  -header image.nii
+
+
+Extract only L1 (primary eigenvalue) using \fBshredder\fR
+
+  cat dt.Bdouble | dteig | shredder 0 8 $((11*8)) | voxel2image -components 1 \\ 
+  -outputroot dteig_L1 -header image.nii.gz
+
+
+Export FA to an image
+
+  cat dt.Bdouble | fa | voxel2image -outputroot fa -header image.nii -gzip
+
+.SH OPTIONS
+
+.TP
+.B \-components <\fIN\fR>
+The number of components in the input data. The default is 1.
+
+.TP
+.B \-gzip
+Set gzip compression for the output image, if supported by the image format.
+
+.TP
+.B \-inputdatatype <\fIdata type of input\fR>
+Specifies the data type of the input file.  The data type can be any of the following
+strings: "byte", "short", "int", "long", "float" or "double".
+
+.TP
+.B \-inputfile <\fIfilename\fR>
+The name of the input file.
+
+.TP
+.B \-outputdatatype <\fIdata type of output\fR>
+Specifies the data type of the output image.  The data type can be any of the following
+strings: "byte", "short", "int", "long", "float" or "double".
+
+.TP
+.B \-outputroot<\fIroot\fR>
+Output file root. If there is one component, or output is to a vector, the output image is called 
+\fIroot\fR.ext, otherwise output is numbered by component.
+
+.TP
+.B \-outputvector\fR
+Output multi-component voxels to a single image.
+
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+image2voxel(1), dt2nii(1)
+
+.SH BUGS

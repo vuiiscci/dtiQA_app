@@ -1,0 +1,89 @@
+.\" $Id: dtfit.1,v 1.9 2006/07/13 15:30:34 ucacpco Exp $
+
+.TH dtfit 1
+
+.SH NAME
+dtfit \- Fits the diffusion tensor to diffusion MRI measurements.
+
+.SH SYNOPSIS
+.B dtfit
+<data file> <scheme file> [-nonlinear] [options]
+
+.SH DESCRIPTION
+Reads diffusion MRI data, acquired using the acquisition scheme detailed in the scheme
+file, from the data file. For help with scheme files, please see the section "scheme
+files" in camino(1).
+
+The data file stores the diffusion MRI data in voxel order with the measurements stored
+in big-endian format and ordered as in the scheme file. The default input data type is
+four-byte float. The default output data type is eight-byte double.
+
+See modelfit(1) and camino(1) for the format of the data file and scheme file. The
+program fits the diffusion tensor to each voxel and outputs the results, in voxel order
+and as big-endian eight-byte doubles, to the standard output. The program outputs eight
+values in each voxel: [exit code, ln(S(0)), D_xx, D_xy, D_xz, D_yy, D_yz, D_zz]. An exit
+code of zero indicates no problems. For a list of other exit codes, see modelfit(1). The
+entry S(0) is an estimate of the signal at q=0.
+
+This program is a simplified wrapper to \fBmodelfit\fR. Options other that
+\fB-nonlinear\fR are documented in modelfit(1). The command
+
+ dtfit SubjectA.Bfloat A.scheme
+
+is equivalent to
+
+ modelfit -inputfile SubjectA.Bfloat -schemefile A.scheme -inversion 1
+
+The command
+
+ dtfit SubjectA.Bfloat A.scheme -nonlinear
+
+is equivalent to
+
+ modelfit -inputfile SubjectA.Bfloat -schemefile A.scheme -inversion 2
+
+To read data from stdin, do:
+
+ cat <data file> | dtfit - A.scheme
+
+The handedness of the coordinate system used by the scanner may not agree with that used
+within Camino. If this happens, the anisotropy and trace of tensors will be correct but
+the orientations will be incorrect. This problem is often only noticed during
+tractography. A simple way to check for this is to fit the diffusion tensors and
+visualize the principal directions with the \fBdtpdview\fR program. If the principal
+directions appear to be rotated by 180 degrees about the X, Y or Z directions, then the
+likely cause is that the gradient directions do not agree. This can be remedied by
+negating the relevant entries in the scheme file.
+
+By default, the program uses linear regression to the log measurements, but may also use
+non-linear fitting to the raw measurements, which is slower but slightly more accurate.
+
+If the first command line argument is - the program reads data from the standard input.
+
+.SH EXAMPLES
+Fit the diffusion tensor to the data in SubjectA.Bfloat using linear regression to the
+log measurements:
+
+dtfit SubjectA.Bfloat A.scheme > DiffTensorA.Bdouble
+
+Equivalently:
+
+cat SubjectA.Bfloat | dtfit - A.scheme > DiffTensorA.Bdouble
+
+Fit the diffusion tensor to the data in SubjectA.Bfloat using non-linear fitting:
+
+dtfit SubjectA.Bfloat A.scheme -nonlinear > DiffTensorA.Bdouble
+
+.SH OPTIONS
+
+.TP
+.B \-nonlinear
+Use non-linear fitting instead of the default linear regression to the log measurements.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), twotenfit(1), threetenfit(1), fa(1), trd(1), shfit(1), shanis(1)
+
+.SH BUGS

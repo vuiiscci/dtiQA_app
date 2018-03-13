@@ -1,0 +1,94 @@
+.\" $Id$
+
+.TH wdtfit 1
+
+.SH NAME
+wdtfit \- Fits the diffusion tensor to diffusion MRI measurements.
+
+.SH SYNOPSIS
+.B wdtfit
+<data file> <scheme file> [noise var map file] [options]
+
+.SH DESCRIPTION
+Reads diffusion MRI data, acquired using the acquisition scheme detailed in the scheme
+file, and fits the diffusion tensor to the log of the data using a weighted linear least
+squares regression. For help with scheme files, please see the section "scheme files" in
+camino(1).
+
+The data file stores the diffusion MRI data in voxel order with the measurements stored
+as big-endian four-byte floats and ordered as in the scheme file. See modelfit(1) and
+camino(1) for the format of the data file and scheme file. The program fits the diffusion
+tensor to each voxel and outputs the results, in voxel order and as big-endian eight-byte
+doubles, to the standard output. The program outputs eight values in each voxel: [exit
+code, ln(S(0)), D_xx, D_xy, D_xz, D_yy, D_yz, D_zz]. An exit code of zero indicates no
+problems. For a list of other exit codes, see modelfit(1). The entry S(0) is an estimate
+of the signal at q=0.
+
+The weighted fitting is an iterative process; the weights are initialized to the
+predicted DW signal given the tensor from the ordinary least squares inversion (inversion
+1, or the default for \fBdtfit\fR). The weights for the next iteration are the predicted
+signal from the previous estimate of D. This follows the procedure of Basser and Le
+Bihan, J Magn Reson B 40:247-254 (1994) and Salvador et al, Human Brain Mapping
+24:144-155 (2005).
+
+If any of the data is bad, ie, log(S_i) cannot be computed for any i, then that
+measurement is excluded from the fitting procedure.
+
+The noise variance map is a map of the estimated variance of the noise in the voxel,
+assuming that the noise can be approximated by a zero-mean Gaussian distribution
+(reasonable for a signal to noise ratio > 5). If the weighted fit cannot be calculated
+for any reason, the output is the unweighted inversion.
+
+The noise variance sigma^2 is the sum of the squares of the weighted residuals normalized
+by the number of degrees of freedom in the voxel. If there are N diffusion-weighted
+measurements and none are bad, the degrees of freedom is (N - 7), since there are 7
+parameters in the fitting (6 for the DT, plus S_0).
+
+This program is a simplified wrapper to \fBmodelfit\fR. The command
+
+ wdtfit SubjectA.Bfloat A.scheme 
+
+is equivalent to
+
+ modelfit -inputfile SubjectA.Bfloat -schemefile A.scheme -inversion 7
+
+The command
+
+ dtfit SubjectA.Bfloat A.scheme sigmaSq.Bdouble
+
+is equivalent to
+
+ modelfit -inputfile SubjectA.Bfloat -schemefile A.scheme -inversion 7 -noisemap sigmaSq.Bdouble
+
+To read data from stdin, do:
+
+ cat <data file> | wdtfit - A.scheme
+
+
+
+The handedness of the coordinate system used by the scanner may not agree with that used
+within Camino. If this happens, the anisotropy and trace of tensors will be correct but
+the orientations will be incorrect. This problem is often only noticed during
+tractography. A simple way to check for this is to fit the diffusion tensors and
+visualize the principal directions with the \fBdtpdview\fR program. If the principal
+directions appear to be rotated by 180 degrees about the X, Y or Z directions, then the
+likely cause is that the gradient directions do not agree. This can be remedied by
+negating the relevant entries in the scheme file.
+
+.SH EXAMPLES
+Fit the diffusion tensor to the data in SubjectA.Bfloat using weighted linear regression
+to the log measurements:
+
+wdtfit SubjectA.Bfloat A.scheme > DiffTensorA.Bdouble
+
+Equivalently:
+
+cat SubjectA.Bfloat | wdtfit - A.scheme > DiffTensorA.Bdouble
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), dtfit(1)
+
+.SH BUGS

@@ -1,0 +1,369 @@
+.\" $Id$
+
+.TH procstreamlines 1
+
+.SH NAME
+procstreamlines \- Process streamline data
+
+.SH SYNOPSIS
+.B procstreamlines 
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+
+This program does post-processing of streamline output from \fBtrack\fR. It can either
+output streamlines or connection probability maps.
+
+.SH SEEDS, WAYPOINTS, EXCLUSION ROIS, ENDPOINT ROIS AND TARGETS
+
+The seed file, the waypoint file, the exclusion file, the endpoint file and the target
+file determine where streamlines start, where they may go, where they may not go, and how
+they are interpreted as connection probabilities.
+
+All of these files should be NIFTI-1 images of the same dimension as the seed
+file. They may have any data type, but should be integer valued, and the maximum value in
+these files must not exceed 2^31 - 1 (the maximum representable by a signed 32-bit
+integer).
+
+Voxels that share the same positive intensity are considered part of the same ROI, they
+do not have to be contiguous. Voxels that are zero or negative are considered background.
+
+The physical space of these images should be the same as the diffusion image from which
+the streamlines were generated.
+
+These images should all share a consistent voxel space, but this shared space doesn't
+have to be the same as the underlying diffusion space. This means, for example, that you
+can use seed files of higher resolution than the diffusion data, and then produce results
+in the high-resolution space with this program.
+
+Streamlines are tested against waypoints, targets etc pointwise, so it is important to
+ensure that the streamlines have sufficient spatial resolution for your needs. This is
+especially important for FACT tracking, where one point is placed in each voxel traversed
+by the streamline in the diffusion space, so the distance between points may be as large
+as the longest span across a voxel. If you perform further processing in a different
+voxel space, you should use the \fB-resamplestepsize\fR option to increase the streamline
+resolution.
+
+.SH SEED FILE
+
+The seed file contains the regions of interest for tracking. Streamlines are seeded at
+the centre of all voxels with an intensity greater than zero.
+
+.SH WAYPOINT FILE
+
+The waypoint file constrains streamlines to pass through certain volumes within the
+image. Waypoints are defined in the same way as ROIs, each intensity value (apart from
+zero) defines a different waypoint. Streamlines will be discarded unless they intersect
+one or more voxels in each waypoint.
+
+.SH EXCLUSION FILE
+
+The exclusion file constrains streamlines to not pass through any volume marked with an
+intensity greater than zero. Streamlines that enter such regions will be discarded
+(default) or truncated (with \fB-truncateinexclusion\fR).
+
+.SH TARGET FILE
+
+The target file is only used for PICo connection probability calculation. For PICo
+tracking without a target image, the output is the connection probability of each voxel
+to the seed, which is the fraction of streamlines that intersect the voxel. With targets,
+the connection probability to all voxels in the target is the fraction of streamlines
+that intersect any voxel in the target. For example, if the thalamus is segmented in the
+target image, then the connection probability to all voxels in the thalamus would be the
+fraction of streamlines that connect to anywhere in the thalamus. If we wanted to know
+the distribution of connections within the thalamus, we would pass the thalamus
+segmentation as a waypoint file but we would not use a target image. Then the output
+would be a connection probability to all voxels in the image, but only streamlines that
+connect to the thalamus would be used in the probability calculation.
+
+.SH ENDPOINT FILE
+
+Endpoint ROIs have some properties of waypoints and some properties of exclusion ROIs. If
+an endpoint ROI image is supplied with the \fB-endpointfile\fR option, the program
+outputs only the streamlines that project from the seed point to two distinct endpoint
+ROIs. The seed point itself may count as one endpoint if it is inside a labeled region. 
+
+A streamline is retained if and only if:
+
+  1. It connects two different endpoint ROIs.
+  2. The segment connecting these two ROIs includes the seed point.
+
+If the streamline does connect to two different endpoint ROIs, then it is truncated. 
+The output is the shortest section of the streamline that connects two endpoint ROIs and 
+includes the seed point.
+
+The major differences between using end zones and a combination of exclusion / waypoints
+are:
+
+  1. All waypoints must be intersected but only two endpoint ROIs must be intersected. 
+
+  2. The section of streamline that connects the endpoint ROIs must include the seed point. 
+     With waypoints, any portion of the streamline may intersect the waypoint. 
+
+  3. If the seed point is within an exclusion ROI, the streamline is truncated or excluded. If
+     the seed point is within an endpoint ROI, the streamline is truncated only when it intersects
+     another endpoint ROI.
+
+.SH ORDER OF PROCESSING
+
+The program performs the various operations on each input streamline in the following
+order:
+
+ * The streamline is truncated to the maximum length, if specified.
+ * Exclusion ROIs are applied.
+ * Waypoints are applied.
+ * Endpoint ROIs are applied.
+
+The streamline may be discarded if it does not connect end points, does not intersect
+waypoints, or enters an exclusion ROI. It may be truncated if it enters an exclusion ROI
+(with \fB-truncateinexclusion\fR) or if it extends beyond the endpoint ROIs.
+
+If the streamline is not discarded, then it is sent to the output or used to construct a
+PICo connectivity map.
+
+Any operation that discards or truncates streamlines modify the PICo connection
+probabilities. Streamlines that are discarded do not figure in the calculation of
+connection probability. For example, if we seed 1000 streamlines and then discard 100
+that do not enter all waypoints, the connection probability of each voxel to the seed is
+(number of streamlines entering voxel) / 900.
+
+.SH OUTPUT
+
+The output is either the streamlines themselves, or connection probability images (these
+images may be processed further with \fBimagestats\fR).
+
+Streamline output is identical to that from \fBtrack\fR; see the options for streamline
+output in track(1). If a seed file and an outputroot are specified, output is segregated
+by region of interest. That is, streamlines from all seed points with the same label are
+grouped together. Otherwise, output is to a single file or to stdout.
+
+
+.SH OUTPUT OF ANATOMICAL CONNECTIVITY MAPS
+
+The \fB-outputacm\fR option takes all input streamlines and produces an image where
+each voxel contains the number of streamlines entering that voxel. If \fB-outputcp\fR is also
+specified, the values are divided by the total number of streamlines in the input. This
+output format is similar to that produced by FSL's probtrack.
+
+The \fB-outputacm\fR option is named after the "anatomical connectivity map" (ACM)
+(Embleton et al, Proc ISMRM 2007, 1548). To build an ACM, seed tractography at every
+voxel in brain gray / white matter, then run \fBprocstreamlines\fR with this option.
+
+Because the ACM combines all streamlines into a single image, it is not necessary to
+specify the seed points or the number of iterations, and it is fine to process the input
+streamlines multiple times by calling \fBprocstreamlines\fR with different options.
+
+If a target file is specified, the ACM is constructed as a target probability image,
+each target ROI is labeled by the number of streamlines entering the ROI.
+
+
+.SH OUTPUT OF VOXELWISE CONNECTION PROBABILITY IMAGES
+
+Without \fB-outputacm\fR, or a target image, output is separately produced for each
+seed point.
+
+The output is (using bash syntax):
+
+   ${outputRoot}${region}_${seed point}_${pd}.{ext}
+
+Where the region is the numerical index of the ROI in the seed file, the seed points are
+numbered from 1 in the order in which they are processed by \fBtrack\fR, and the pd is
+the principal direction that the streamlines follow at the seed point. If there are P
+principal directions at each seed point, then a separate image is generated for pd 1
+through P.
+
+If \fB\-outputsc\fR is specified, then the output contains raw streamline counts, ie the
+number of streamlines that enter each voxel. If \fB\-outputcp\fR is specified, the
+streamline counts are normalized by the total number of streamlines. The data type of the
+images is 32-bit int.
+
+.SH OUTPUT OF TARGET CONNECTION PROBABILITY IMAGES
+
+With a target image, output is
+
+   ${outputRoot}_${region}_${seed point}_${pd}_0.{ext}
+
+Either \fB\-outputcp\fR or \fB\-outputsc\fR may be specified with the target file. The
+default is \fB\-outputsc\fR, which means results are not normalized by the total number
+of streamlines used to compose the image (which may vary from seed to seed due to
+filtering by waypoints etc).
+
+.SH EXAMPLES
+
+Track all fibres from an ROI drawn by hand on the mid-sagittal plane. The ROI contains
+corpus callosum fibres at the mid-sagittal plane.
+
+  track -inputfile dt.nii.gz -inputmodel dt -outputroot cc_ -seedfile ccROI.nii.gz > cc.Bfloat
+
+Apply an end point file cortex.nii.gz, which contains labeled cortical regions
+
+  procstreamlines -endpointfile cortex.nii.gz > corticalConnections.Bfloat
+
+The output is now only tracts that connect two different cortical regions.
+
+
+.SH OPTIONS
+
+The tracts are read and written in physical space, the mapping between voxel and physical space is usually
+inferred from the input (eg a seed image), but if no input images are used, use \fB-header\fR to specify a
+reference image that has the same physical space as the diffusion data.
+
+.SH DATA OPTIONS
+
+.TP
+.B \-mintractpoints\fR <\fIminpoints\fR>
+
+Streamlines that consist of fewer than \fIminpoints\fR will be discarded.
+
+.TP
+.B \-mintractlength\fR <\fIminlength\fR>
+
+Streamlines are discarded if their length is less than \fIminlength\fR mm.
+
+.TP
+.B \-maxtractpoints\fR <\fImaxpoints\fR>
+
+Streamlines that consist of more than \fImaxpoints\fR will be truncated to \fImaxpoint\fR
+in length. Specifying this option will automatically disable resampling of tracts.
+
+.TP
+.B \-maxtractlength\fR <\fImaxlength\fR>
+
+Streamlines longer than \fImaxlength\fR mm will be truncated. This calculation is done
+before resampling, so the truncation is accurate to the original resolution of the tract.
+
+.SH SEED OPTIONS
+
+.TP
+.B \-seedfile\fR <\fIfile.[hdr | nii | mha | mhd]\fR>
+Image containing seed points. If an output root is specified, the output  is grouped
+according to the intensity of the seed in this image.
+
+.TP
+.B \-regionindex \fR <\fIindex\fR>
+Process the specified region in the seed file. This index refers to a particular label
+intensity in the seed file.
+
+.SH OTHER OPTIONS
+
+.TP
+.B \-targetfile\fR <\fIfile\fR>
+Image containing target volumes. Targets are defined as regions of the image with the
+same intensity. If this option is given, the PICo maps will only localise connection
+probability to the volumes bounded by the targets. The connection probability to a target
+from a seed is the fraction of streamlines that pass anywhere within the target volume.
+
+.TP
+.B \-allowmultitargets\fR
+Allows streamlines to connect to multiple target volumes. By default, the program only
+counts the first entry to a target volume.
+
+.TP
+.B \-waypointfile\fR <\fIfile.[hdr | nii | mha | mhd]\fR>
+Image containing waypoints. Waypoints are defined as regions of the image with the same
+intensity, where 0 is background and any value > 0 is a waypoint. Streamlines are
+discarded if they do not pass through at least one voxel of each waypoint volume.
+
+.TP
+.B \-truncateloops\fR
+This option allows streamlines to enter a waypoint exactly once. After the streamline
+leaves the waypoint, it is truncated upon a second entry to the waypoint. For the
+purposes of this operation, the streamline is divided into two segments at the seed
+point. Each segment is allowed to enter each waypoint once and the segment is truncated
+at a second entry.
+
+.TP
+.B \-discardloops\fR
+This option allows streamlines to enter a waypoint exactly once. After the streamline
+leaves the waypoint, the entire streamline is discarded upon a second entry to the
+waypoint. For the purposes of this operation, the streamline is divided into two segments
+at the seed point. Each segment is allowed to enter each waypoint once and the entire
+streamline is discarded if either segment enters a waypoint twice.
+
+.TP
+.B \-exclusionfile\fR <\fIfile.[hdr | nii | mha | mhd]\fR>
+Image containing exclusion ROIs. By default, exclusion ROIs are  treated as
+anti-waypoints - streamlines that enter any exclusion ROI are discarded. if the
+\fB-truncateinexclusion\fR option is given, streamlines are truncated upon entry to an
+exclusion ROI, but not discarded.
+
+.TP
+.B \-truncateinexclusion\fR
+Retain segments of a streamline before entry to an exclusion ROI. If this is not
+specified, streamlines that enter an exclusion ROI are discarded.
+
+.TP
+.B \-endpointfile\fR <\fIfile.[hdr | nii | mha | mhd]\fR>
+Image containing endpoint ROIs. Endpoint ROIs are defined as regions of the image with
+the same intensity, where 0 is background and any value > 0 is an endpoint ROI.
+Streamlines are discarded if they do not connect two different endpoint ROIs.
+
+.TP
+.B \-resamplestepsize\fR <\fIsize\fR>
+Each point on a streamline is tested for entry into target, exclusion or waypoint
+volumes. If the length between points on a tract is not much smaller than the voxel
+length, then streamlines may pass through part of a voxel without being counted. If this
+option is not present, no resampling is done by default.
+
+.TP
+.B \-iterations
+Number of streamlines generated for each seed. Only required for voxelwise images. 
+
+
+.SH OUTPUT OPTIONS
+
+.TP
+.B \-gzip
+Compress output using the gzip algorithm.
+
+.TP
+.B \-outputtracts\fR 
+
+Output streamlines in raw binary format.
+
+.TP
+.B \-outputcp\fR
+Output the connection probability map, normalized by the number of streamlines used
+to build the output image.
+
+.TP
+.B \-outputsc\fR
+Output raw streamline counts.
+
+.TP
+.B \-outputacm\fR
+Combine all tracts in the input into a single output image.  Outputs a
+single image where each voxel contains the number of streamlines that enter the voxel. If
+\fB-outputcp\fR is also specified, the values are divided by the total number of
+streamlines in the input.
+
+.TP
+.B \-outputroot\fR <\fIstring\fR>
+Prepended onto all output file names. If the output is streamlines, then using this 
+option tells the program to separate streamlines by ROI.
+
+.TP
+.B \-outputdatatype\fR <\fItype\fR>
+Sets the data type of images (default float). Tracts are always output as float.
+Acceptable values vary by image format, but you should be safe with "short", "float",
+"int", "double".
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+track(1), imagestats(1), vtkstreamlines(1)
+
+.SH BUGS
+
+Although input and output of tracts is done in physical space, tracts are converted
+internally into voxel space for processing. This can introduce small deltas in the tract
+geometry. These precision errors are small but they might upset algorithms that look for
+exact pointwise correspondences.
+
+
+Note that you cannot filter streamlines and output to the same file with a command like
+
+  cat streamlines.Bfloat | procstreamlines [args] > streamlines.Bfloat
+
+If you do this, the streamlines file will be lost.

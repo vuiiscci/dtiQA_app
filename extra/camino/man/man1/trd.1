@@ -1,0 +1,63 @@
+.\" $Id: trd.1,v 1.6 2006/03/14 19:44:24 ucacpco Exp $
+
+.TH trd 1
+
+.SH NAME
+trd \- Computes the trace of tensors.
+
+.SH SYNOPSIS
+.B trd
+[-inputmodel <dt|twotensor|threetensor|multitensor>]
+
+.SH DESCRIPTION
+Reads diffusion tensor (single, two-tensor or three-tensor) data from the standard input,
+computes the trace of each tensor, i.e., three times the mean diffusivity, and outputs
+the results to the standard output. For multiple-tensor data the program outputs the
+trace of each tensor, so for three-tensor data, for example, the output contains three
+values per voxel.
+
+Divide the output by three to get the mean diffusivity.
+
+.SH EXAMPLES
+
+Compute Tr(D) in each voxel of diffusion MRI data set SubjectA.Bfloat and store the
+output in TrD_A.Bdouble:
+
+dtfit SubjectA.Bfloat test/A.scheme | trd > TrD_A.Bdouble
+
+Compute Tr(D) for each component of the two-tensor fit to the same data set:
+
+twotenfit SubjectA.Bfloat test/A.scheme | trd -inputmodel twotensor > TrD_A.Bdouble
+
+Compute Tr(D) for 10000 independent trials of fitting the diffusion tensor to data
+synthesized from test function 1 (see datasynth(1)) using imaging scheme A.scheme and
+assuming signal to noise ratio of 16 at b=0:
+
+datasynth -testfunc 1 -voxels 10000 -snr 16 -schemefile A.scheme | dtfit - A.scheme | trd
+> TrD_A_SNR16.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-inputmodel\fR <\fImodel type\fR>
+Specifies the model that the input data contains parameters for. Possible model types
+are: "dt" (diffusion-tensor data), "twotensor" (two-tensor data), "threetensor"
+(three-tensor data). By default, the program assumes that the input data contains a
+single diffusion tensor in each voxel.
+
+.TP
+.B \-inputdatatype\fR <\fIdata type of input\fR>
+Specifies the data type of the input file.   The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double".
+
+.TP
+.B \-outputdatatype\fR <\fIdata type of output\fR>
+Specifies the data type of the output data.   The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". See camino(1).
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+md(1), fa(1), dtpds(1), dtfit(1), twotenfit(1), threetenfit(1), modelfit(1).
+
+.SH BUGS

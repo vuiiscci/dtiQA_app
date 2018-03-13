@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Wrapper for modelfit that provides a simple interface for simply
+# fitting the diffusion tensor to diffusion MRI data in a file.
+# 
+# $Id: dtfit,v 1.4 2006/01/18 12:50:00 ucacpco Exp $
+
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+if [ $# -lt 2 ]; then
+    echo "dtfit <data file> <scheme file> [-nonlinear]"
+    exit
+fi
+
+DATAFILE=$1
+SCHEMEFILE=$2
+
+INVERSION=1
+if [ $# -gt 2 ] && [ $3 == -nonlinear ]; then
+    INVERSION=2
+    shift 3
+
+else
+
+    shift 2
+
+fi
+
+DATAOPT="-inputfile $DATAFILE"
+if [ $DATAFILE == - ]; then
+    DATAOPT=
+fi
+
+
+exec ${SCRIPTDIR}/modelfit $* $DATAOPT -schemefile $SCHEMEFILE -inversion $INVERSION
+
+
+

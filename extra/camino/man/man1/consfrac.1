@@ -1,0 +1,137 @@
+.\" $Id: consfrac.1,v 1.4 2006/04/20 12:54:33 ucacdxa Exp $
+
+.TH consfrac 1
+
+.SH NAME
+consfrac \- Computes the consistency fraction for multiple fibre reconstructions.
+
+.SH SYNOPSIS
+.B consfrac
+-voxels <num voxels> [\fIoptions\fR]
+
+.SH DESCRIPTION
+Reads in the output of sfpeaks and computes the consistency fraction with a known set of
+expected peak directions. Used for performance evaluations of multiple-fibre
+reconstructions in simulation.
+
+The consistency fraction is the fraction of trials in which the sfpeaks output is
+consistent with a known set of expected peak directions. Two sets of directions are
+consistent if they contain the same number of directions and each element of one set is
+within a small angular tolerance of an element of the other and vice versa. (Defined in
+Jansons and Alexander, Inverse Problems 19 2004.)
+
+The program outputs three numbers:
+
+ - the number of input voxels
+ - the number of "successful" trials (which is the number with the
+expected number of peaks) and,
+
+ - the consistency fraction itself}.
+
+.SH EXAMPLES
+Here are some examples using q-ball.
+
+qballmx -schemefile test/bmx7.scheme > /tmp/BMX7_QBMX.Bdouble
+
+datasynth -voxels 20 -testfunc 1 -schemefile test/bmx7.scheme -snr 16 | linrecon -
+test/bmx7.scheme /tmp/BMX7_QBMX.Bdouble -normalize | sfpeaks -inputmodel rbf -rbfpointset
+246 -density 100 | consfrac -testfunc 1 -voxels 20 | double2txt
+
+Outputs the following:
+
+ 2.000000E01	Number of trials
+ 1.000000E00	Fraction of successful trials (with the right number of peaks)
+ 1.000000E00	Consistency fraction
+
+Increasing the noise level reduces the consistency fraction, as some peak directions are
+too far from the expected direction:
+
+datasynth -voxels 20 -testfunc 1 -schemefile test/bmx7.scheme -snr 4 | linrecon -
+test/bmx7.scheme /tmp/BMX7_QBMX.Bdouble -normalize | sfpeaks -inputmodel rbf -rbfpointset
+246 -density 100 | consfrac -testfunc 1 -voxels 20 | double2txt
+
+ 2.000000E01
+ 1.000000E00
+ 3.500000E-01
+
+
+The following is a simple investigation of how the consistency fraction varies with noise
+level. This time we use a test function with two directions, which q-ball finds harder to
+reconstruct. Note how shredder pulls out the third number from each output, which is the
+consistency fraction.
+
+for snr in 4 8 12 16 20 24 28 32; do echo SNR is $snr C is; datasynth -voxels 20
+-testfunc 3 -schemefile test/bmx7.scheme -snr $snr | linrecon - test/bmx7.scheme
+/tmp/BMX7_QBMX.Bdouble -normalize | sfpeaks -inputmodel rbf -rbfpointset 246 -density 100
+| consfrac -testfunc 3 -voxels 20 | shredder $((8*2)) 8 $((8*6)) | double2txt; done
+
+ SNR is 4 C is
+ 5.000000E-02
+ SNR is 8 C is
+ 5.000000E-01
+ SNR is 12 C is
+ 7.500000E-01
+ SNR is 16 C is
+ 1.000000E00
+ SNR is 20 C is
+ 1.000000E00
+ SNR is 24 C is
+ 1.000000E00
+ SNR is 28 C is
+ 1.000000E00
+ SNR is 32 C is
+ 1.000000E00
+
+
+Here is a similar example using PASMRI:
+
+for snr in 4 8 12 16 20 24 28 32; do echo SNR is $snr C is; datasynth -voxels 20
+-testfunc 3 -schemefile test/bmx7.scheme -snr $snr | mesd -filter PAS 1.4 -schemefile
+test/bmx7.scheme | sfpeaks -inputmodel maxent -mepointset 54 | consfrac -testfunc 3
+-voxels 20 | shredder $((8*2)) 8 $((8*6)) | double2txt; done
+
+ SNR is 4 C is
+ 3.500000E-01
+ SNR is 8 C is
+ 9.000000E-01
+ SNR is 12 C is
+ 1.000000E00
+ SNR is 16 C is
+ 1.000000E00
+ SNR is 20 C is
+ 1.000000E00
+ SNR is 24 C is
+ 1.000000E00
+ SNR is 28 C is
+ 1.000000E00
+ SNR is 32 C is
+ 1.000000E00
+
+.SH OPTIONS
+.TP
+Standard IO options, as listed in modelfit(1).
+
+Standard synthetic data options to specify the known set of directions, eg -testfunc,
+-rotation, -dt2rotangle, etc, as listed in datasynth(1).
+
+.TP
+.B \-voxels\fR <\fInumber of voxels\fR>
+The number of voxels in the input data.  Defaults to one, so must be specified.
+
+.TP
+.B \-numpds\fR <\fIindex\fR>
+The number of principal directions per voxel in the input (ie, output of sfpeaks(1)). The
+default is 3, as in sfpeaks(1).
+
+.TP
+.B \-thresh\fR <\fIindex\fR>
+The threshold on the absolute dot product of two directions above which they are
+considered consistent. The default is 0.95.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+invstats(1), mfrstats(1), modelfit(1), twotenfit(1), threetenfit(1)
+
+.SH BUGS

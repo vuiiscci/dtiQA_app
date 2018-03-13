@@ -1,0 +1,64 @@
+.\" $Id: fa.1,v 1.7 2006/04/21 13:53:36 ucacpco Exp $
+
+.TH mask 1
+
+.SH NAME
+mask \- Creates a background mask from a voxel-ordered DW data file by thresholding the
+average b=0 measurement.
+
+.SH SYNOPSIS
+.B mask
+[-schemefile <filename> -bgthresh <positive integer>]
+
+.SH DESCRIPTION
+Reads a data file from the acquisition scheme specified in the schemefile. Thresholds the
+average b=0 measurement in each voxel and outputs one or zero indicating whether the
+average is above the threshold.
+
+.SH EXAMPLES
+
+Create a mask for data file SubjectA.Bfloat:
+
+mask -inputfile SubjectA.Bfloat -schemefile test/A.scheme -bgthresh 200 >
+SubjectA_M200.char
+
+or, equivalently,
+
+mask -schemefile test/A.scheme -bgthresh 200 < SubjectA.Bfloat> SubjectA_M200.char
+
+.SH OPTIONS
+.TP
+.B \-inputfile\fR <\fIfile\fR>
+Diffusion-weighted MRI data file in voxel order.
+
+.TP
+.B \-schemefile\fR <\fIfile\fR>
+Schemefile.
+
+.TP
+.B \-bgthresh\fR <\fIinteger\fR>
+The lower threshold on the average b=0 measurement.
+
+.TP
+.B \-csfthresh\fR <\fIinteger\fR>
+The upper threshold on the average b=0 measurement.
+
+.TP
+.B \-inputdatatype\fR <\fIdata type of input\fR>
+Specifies the data type of the input file.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". See camino(1).
+
+.TP
+.B \-outputdatatype\fR <\fIdata type of output\fR>
+Specifies the data type of the output data.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". See camino(1).
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+trd(1), dtpds(1), dtfit(1), twotenfit(1), threetenfit(1), modelfit(1).
+
+.SH BUGS
+Requires the acquisition to have at least one b=0 measurement. However, you can cheat and
+create a dummy scheme file with low b measurements set to zero if necessary. Works fine.

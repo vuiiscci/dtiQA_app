@@ -1,0 +1,61 @@
+.\" $Id$
+
+.TH mha2dt 1
+
+.SH NAME
+mha2dt \- Converts MetaIO tensors to Camino format.
+
+.SH SYNOPSIS
+.B mha2dt -inputfile [image.mha] [\fB-s0 <\fIfile\fR> | \fB-lns0 <\fIfile\fR>] [\fIoptions\fR]
+
+.SH DESCRIPTION
+This tool converts MetaIO diffusion tensors to Camino format. 
+
+The output is the tensors in Camino voxel ordering: [exit, ln(S0), dxx, dxy, dxz, dyy,
+dyz, dzz].
+
+The exit code is set to 0 unless a background mask is supplied, in which case the code is
+0 in brain voxels and -1 in background voxels.
+
+The value of ln(S0) in the output is taken from a file if one is supplied, otherwise it
+is set to 0.
+
+.SH EXAMPLES
+
+Convert tensors from the file image.mha, applying a brain / background segmentation
+including the unweighted signal in the output.
+
+  mha2dt -inputfile image.mha -bgmask mask.mha -lns0 lns0.mha > dt.Bdouble
+
+Alternatively, the output may be piped to any Camino program that takes tensors as input.
+
+.SH OPTIONS
+
+.TP
+.B \-inputfile\fR <\fImetafile\fR>
+A meta image file containing diffusion tensors. The tensors are assumed to be in 
+upper-triangular order and voxel-ordered.
+
+.TP
+.B \-s0\fR <\fIfile\fR>
+File containing the unweighted signal for each voxel, may be a raw binary file	(specify
+type with \fB\-inputdatatype\fR) or a supported image file.
+
+.TP
+.B \-lns0\fR <\fIfile\fR>
+File containing the log of the unweighted signal for each voxel, may be a raw binary file
+ (specify type with \fB\-inputdatatype\fR) or a supported image file.
+
+.TP
+.B \-bgmask\fR <\fImask\fR>
+Binary valued brain / background segmentation, may be a raw binary file  (specify type
+with \fB\-maskdatatype\fR) or a supported image file.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+
+nii2dt(1)
+
+.SH BUGS

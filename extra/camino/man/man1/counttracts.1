@@ -1,0 +1,29 @@
+.\" $Id$
+
+.TH counttracts 1
+
+.SH NAME
+counttracts \- Print total number of streamlines in input
+
+.SH SYNOPSIS
+.B counttracts \fR -inputfile <\fItracts\fR> [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+This program runs through a set of tracts and outputs the total number.
+
+.SH EXAMPLES
+
+Count streamlines in a file tracts.Bfloat
+
+  cat tracts.Bfloat | counttracts
+
+  counttracts -inputfile tracts.Bfloat
+
+.SH AUTHORS
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+tractshredder(1)
+
+.SH BUGS

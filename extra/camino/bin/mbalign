@@ -1,0 +1,464 @@
+#!/bin/bash
+
+# User Commands 
+#****************
+# -inputfile <Input voxel-order file>
+# -schemefile <Scheme file name>
+# -datadims X Y Z <Number of voxels in each dimension> 
+# -voxeldims x y z <Voxel size in mm>
+# -sigma <Standard deviation of noise>
+#    See datastats(1).
+#
+# Optional Input
+#----------------
+# -fsldir <FSL directory>
+# -outputfile <Output voxel-order file>
+#    Default outfile is derived from input file name.
+# -datatype <Data type for input and output files>
+#    Default is float.
+# -bgmask <Mask file>
+# -bgthresh <Background threshold>
+#    Default is 0.
+# -tmpdir <Temp directory for calculation> 
+#    Deault name is taken from input file name, current date time, and is a subdirectory of /tmp.
+#    CAUTION: When user specify -tmpdir, avoid using the same name when more than one shells are running at the same time.
+# -flirtsearchcost <Search cost function used in flirt>
+#    Default cost function is mutualinfo (Mutual Information). Other options are corratio,normcorr,normmi,leastsq.
+# -flirttransform <Transformation used in flirt>.
+#    Default transformation is affine. The other option is rigid.
+# -omat <File name>
+#    Output transform matrix in ascii format.
+# -keepjunk 
+#    Default is removing all junk before program finish.
+# -slicecheck <File name>
+#    Output a pair of <File name>.img and <File name>.hrd files. Default is no calculation.
+# -searchrange <angle>
+#    Default is 90, which means search range is between -90 and 90 in all x, y and z directions.
+# -eddy
+#    Specifies registration for eddy-current induced distortion.
+# -scanner
+#    Regards input file as in scanner-order
+#    command line example: -scanner -inputfile <file name>
+# -scanout <output scanner-order file>
+#    Adds an extra output file in scanner-order. This won't stop default voxel-order output.
+
+# Author: Yu Bai
+# Date: Mar. 2008
+
+####################################################
+##### Change default variables to match system #####
+####################################################
+# Hint: To make your input arguments simple, set 
+#       default input which you most often to use.
+
+# FSL directory
+DIR_FSL=/cs/research/medim/common0/green/common/fsl/fslRH9
+
+# LIM_ROTATE is default for -searchrange
+LIM_ROTATE=90
+
+# Available cost functions are:
+#   mutualinfo corratio,normcorr,normmi,leastsq.
+SEARCH_COST=mutualinfo 
+
+#Degree of freedom
+# 12 for affine; 6 for rigid.
+DOF=12  
+
+######################################################
+####    DO NOT CHANGE ANYTHING BELOW THIS LINE    ####
+#### Unless you are very sure what you are doing  ####
+######################################################
+
+DIR_CAMINO=${0%/*}
+
+set -e
+
+# Read command line:
+export NUMARGS=$#
+for ((i=1; i<=$NUMARGS; i=i+1)); do
+    CL[$i]=$1  # Store input arguments into CL[]
+    shift;
+    EXITCODE=$?
+done
+
+# Default flag setting
+FLAG_OMAT=0
+FLAG_MASK=0
+FLAG_JUNK=0
+
+FLAG_SCANIN=0
+
+for ((i=1; i<=$NUMARGS; i=i+1)); do
+    if [ ${CL[$i]} == -inputfile ]; then
+	INPUTFILE=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -datatype ]; then
+	DATATYPE=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -schemefile ]; then
+	SCHEMEFILE=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -datadims ]; then
+	DATADIM_X=${CL[$(($i+1))]}
+	DATADIM_Y=${CL[$(($i+2))]}
+	DATADIM_Z=${CL[$(($i+3))]}
+    fi
+    if [ ${CL[$i]} == -voxeldims ]; then
+	VOXELDIM_X=${CL[$(($i+1))]}
+	VOXELDIM_Y=${CL[$(($i+2))]}
+	VOXELDIM_Z=${CL[$(($i+3))]}
+    fi  
+    if [ ${CL[$i]} == -bgmask ]; then
+	BACKGROUND_MASK=${CL[$(($i+1))]}
+	FLAG_MASK=1
+    fi
+    if [ ${CL[$i]} == -bgthresh ]; then
+	BACKGROUND_THRESH=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -sigma ]; then
+	SIGMA=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -components ]; then
+	COMPONENT=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -fsldir ]; then
+	DIR_FSL=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -caminodir ]; then
+	DIR_CAMINO=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -outputfile ]; then
+	OUTPUTFILE=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -tmpdir ]; then
+	DIR_TMP=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -flirtsearchcost ]; then
+	SEARCH_COST=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -flirttransform ]; then
+	if [ ${CL[$(($i+1))]} == rigid ]; then
+	    DOF=6
+	fi
+    fi
+    if [ ${CL[$i]} == -omat ]; then
+	OUT_MAT=${CL[$(($i+1))]}
+	FLAG_OMAT=1
+    fi
+    if [ ${CL[$i]} == -keepjunk ]; then
+	FLAG_JUNK=1	
+    fi
+    if [ ${CL[$i]} == -slicecheck ]; then
+	FILE_SLICECHECK=${CL[$(($i+1))]}
+    fi
+    if [ ${CL[$i]} == -eddy ]; then
+	ANGLE=-nosearch
+    fi
+
+    if [ ${CL[$i]} == -scanner ]; then
+	FLAG_SCANIN=1
+    fi
+    if [ ${CL[$i]} == -scanout ]; then
+	OUT_SCAN=${CL[$(($i+1))]}
+	echo \
+	echo scanner-order output will be $OUT_SCAN
+    fi
+    if [ ${CL[$i]} == -searchrange ]; then
+	LIM_ROTATE=${CL[$(($i+1))]}
+    fi    
+
+done
+
+# Check I have every input I need #
+MISSINGINFO=0 # set flag for input checking
+
+if [[ $INPUTFILE == "" ]];then
+    MISSINGINFO=1
+    echo Error: Missing input for -inputfile
+fi
+
+if [[ ! $INPUTFILE == "" ]];then
+    if [ ! -e $INPUTFILE ]; then
+	MISSINGINFO=1
+	echo Error: $INPUTFILE: No such file
+    fi
+fi
+
+if [[ $SCHEMEFILE == "" ]];then
+    MISSINGINFO=1
+    echo Error: Missing input for -schemefile
+fi
+
+if [[ $DATADIM_X == "" ]];then
+    MISSINGINFO=1
+    echo Error: Missing input for -datadims
+fi
+
+if [[ $VOXELDIM_X == "" ]];then
+    MISSINGINFO=1
+    echo Error: Missing input for -voxeldims
+fi
+
+if [[ $SIGMA == "" ]];then
+    MISSINGINFO=1
+    echo Error: Missing input for -sigma
+fi
+
+if [[ $DIR_FSL == "" ]];then
+    MISSINGINFO=1
+    echo Error: Missing input for -fsldir, or default value of DIR_FSL.
+fi
+
+echo \
+
+if [[ "$MISSINGINFO" == 0 ]]; then
+    echo ":-)" I have everything I need!
+fi 
+
+if [[ "$MISSINGINFO" == 1 ]]; then
+    echo ":-(" I have not got everything I need yet! Please perfect you input!
+    exit
+fi
+
+
+# Check threshold and background mask input #
+if [[ $BACKGROUND_MASK == "" ]] && [[ $BACKGROUND_THRESH == "" ]]; then
+    BACKGROUND_THRESH=0
+    echo WARNING: No -bgmask and -bgthresh input, using zero background threshold. Performance may improve with better threshold.
+fi
+
+
+# Check component input #
+#   if no input, give a guess from scheme file
+if [[ $COMPONENT == "" ]]; then
+    # Read number of components from schemefile:
+    NO_LINE=`wc -l < $SCHEMEFILE` 
+    COMPONENT=$(((NO_LINE-2)/3))
+    echo WARNING: No -components input. Using $COMPONENT components from schemefile. If wrong, restart with -components option.
+fi
+
+# Check component, which should be less than 26x26 #
+if (( "$COMPONENT" >= "$((26*26))")); then
+    echo Maximum components $((26*26)). Contact developer to increase!
+    exit
+else
+    echo $COMPONENT components inside inputfile.
+fi
+
+
+# Check directory for calculation #
+FILEROOT=${INPUTFILE##*/} # subtract path from file name
+FILEPART=${FILEROOT%.*} # subtract text after last dot
+if [[ $DIR_TMP == "" ]]; then
+    DIR_TMP=/tmp/${FILEPART}_`date +%d.%m.%y_%H%M%S`
+    echo No temp directory specified. Trying to use ${DIR_TMP}.
+fi
+
+if [ -d ${DIR_TMP} ]; then  # -d True if FILE exists and is a directory.
+    echo ${DIR_TMP} exists.
+else
+    mkdir ${DIR_TMP}
+    echo Successfully created ${DIR_TMP}.
+fi
+
+
+# Check input data type#
+if [[ $DATATYPE == "" ]]; then
+    DATATYPE=float
+    echo No data type specified. Default is $DATATYPE
+fi
+
+# Detect system #
+SYS=`uname -s`
+if [ $SYS == SunOS ]; then
+    echo SunOS system detected. 
+    ENDIAN=B
+else
+    echo Linux system detected. 
+    ENDIAN=L
+fi
+
+
+# Check output file name #
+if [[ $OUTPUTFILE == "" ]]; then
+    # Output is always in Big-endian
+    OUTPUTFILE=/tmp/$FILEPART.out.B${DATATYPE}
+    echo No output file name specified. Output file will be: $OUTPUTFILE
+fi
+
+
+# Estimate disk space temporarily used during calculation #
+if [ ${DATATYPE} == double ]; then
+    TYPESIZE=8
+fi
+if [ ${DATATYPE} == float ]; then
+    TYPESIZE=4
+fi
+if [ ${DATATYPE} == short ]; then
+    TYPESIZE=2
+fi
+ACQSIZE=$(($DATADIM_X*$DATADIM_Y*$DATADIM_Z*$TYPESIZE))
+TMPSIZE=$(($ACQSIZE*$COMPONENT*9))
+echo Disk space temporarily used during calculation is about $TMPSIZE. Make sure space is available!
+
+
+# Names used in registration
+BASENAME_ORI=ori.ScannerOrder.B${DATATYPE}
+BASENAME_REF=ref.ScannerOrder.B${DATATYPE}
+BASENAME_OUT=out.ScannerOrder.${ENDIAN}${DATATYPE}
+
+# Fit model using RESTORE:
+NO_VOXEL=$(($DATADIM_X*$DATADIM_Y*$DATADIM_Z))
+
+# Set Camino path in the .bashrc
+export PATH=${PATH}:${DIR_CAMINO}
+
+if [[ "$FLAG_SCANIN" == 1 ]]; then
+    echo  Transfer input file to voxel-order...
+    scanner2voxel -voxels ${NO_VOXEL} -inputdatatype ${DATATYPE} -outputdatatype ${DATATYPE} -components ${COMPONENT} -inputfile ${INPUTFILE} > ${DIR_TMP}/inputmeasure.VoxelOrder.B${DATATYPE}
+    INPUTFILE=${DIR_TMP}/inputmeasure.VoxelOrder.B${DATATYPE}
+fi
+
+echo Fitting Tensors...
+## Check -omat input from user
+if [[ "$FLAG_MASK" == 1 ]]; then
+    echo mask input
+    modelfit -inputfile ${INPUTFILE} -inputdatatype ${DATATYPE} -schemefile ${SCHEMEFILE} -inversion -2 -sigma ${SIGMA} -bgmask ${BACKGROUND_MASK} > ${DIR_TMP}/inputmeasure.VoxelOrder.Bdouble
+else
+    echo no mask input
+    modelfit -inputfile ${INPUTFILE} -inputdatatype ${DATATYPE} -schemefile ${SCHEMEFILE} -inversion -2 -sigma ${SIGMA} -bgthresh ${BACKGROUND_THRESH} > ${DIR_TMP}/inputmeasure.VoxelOrder.Bdouble
+fi
+
+echo Making Make Synthetic Reference Data...
+datasynth -inputmodel dt -schemefile ${SCHEMEFILE} < ${DIR_TMP}/inputmeasure.VoxelOrder.Bdouble > ${DIR_TMP}/ref.VoxelOrder.Bfloat
+
+echo Tranfering to Scanner-Order...
+# Reference Image
+voxel2scanner -voxels ${NO_VOXEL} -inputdatatype float -outputdatatype ${DATATYPE} -components ${COMPONENT} -inputfile ${DIR_TMP}/ref.VoxelOrder.Bfloat > ${DIR_TMP}/$BASENAME_REF
+
+# Original Input Image
+voxel2scanner -voxels ${NO_VOXEL} -inputdatatype ${DATATYPE} -outputdatatype ${DATATYPE} -components ${COMPONENT} -inputfile $INPUTFILE > ${DIR_TMP}/$BASENAME_ORI
+
+
+# Convert source and target images to analyze format, and split them:
+echo Convert images to analyze format...
+
+split -b $ACQSIZE ${DIR_TMP}/${BASENAME_REF} ${DIR_TMP}/${BASENAME_REF}.
+for i in ${DIR_TMP}/${BASENAME_REF}.??; do
+   analyzeheader -voxeldims $VOXELDIM_X $VOXELDIM_Y $VOXELDIM_Z -datadims $DATADIM_X $DATADIM_Y $DATADIM_Z -datatype ${DATATYPE} > $i.hdr
+    mv $i $i.img
+done
+
+split -b $ACQSIZE ${DIR_TMP}/${BASENAME_ORI} ${DIR_TMP}/${BASENAME_ORI}.
+for i in ${DIR_TMP}/${BASENAME_ORI}.??; do
+   analyzeheader -voxeldims $VOXELDIM_X $VOXELDIM_Y $VOXELDIM_Z -datadims $DATADIM_X $DATADIM_Y $DATADIM_Z -datatype ${DATATYPE} > $i.hdr
+    mv $i $i.img
+done
+
+
+# Run registration for each pair #
+
+source $DIR_FSL/etc/fslconf/fsl.sh
+export FSLOUTPUTTYPE=ANALYZE
+export FSLDIR=$DIR_FSL
+export PATH=${PATH}:${FSLDIR}/bin
+
+set +e
+
+# LIM__ROTATE (angle range for transformation)  can be specified by either -searchrange <angle>, or LIM__ROTATE=
+if [[ $LIM_ROTATE == "" ]];then
+    LIM_COMMAND=""
+fi
+if [[ ! $LIM_ROTATE == "" ]];then
+    LIM_COMMAND="-searchrx -$LIM_ROTATE $LIM_ROTATE  -searchry -$LIM_ROTATE $LIM_ROTATE  -searchrz -$LIM_ROTATE $LIM_ROTATE"
+fi
+
+m=0 # flag to control loop times
+for i in a b c d e f g h i j k l m n o p q r s t u v w x y z; do
+   for j in a b c d e f g h i j k l m n o p q r s t u v w x y z; do
+
+    TEMPDOF=$DOF
+
+    EXTEN=${i}${j} 
+    if (( "$m" < "$COMPONENT" ));then
+	if [ -e ${DIR_TMP}/${BASENAME_ORI}.${EXTEN}.img ]; then
+	    echo Registering ${BASENAME_ORI}.${EXTEN} by using ${BASENAME_REF}.${EXTEN}  
+
+	    if [[ "$TEMPDOF" == 12 ]]; then
+		flirt -cost $SEARCH_COST -searchcost $SEARCH_COST -in ${DIR_TMP}/${BASENAME_ORI}.${EXTEN} -ref ${DIR_TMP}/${BASENAME_REF}.${EXTEN}.img -out ${DIR_TMP}/${BASENAME_OUT}.${EXTEN} -omat ${DIR_TMP}/${BASENAME_OUT}.omat.${EXTEN} -dof $TEMPDOF $ANGLE $LIM_COMMAND
+		if [[ $? != 0 ]]; then
+		    echo WARNING: Affine registration failed for ${BASENAME_ORI}.${EXTEN}. Trying rigid.
+		    TEMPDOF=6
+		fi
+	    fi
+
+	    if [[ "$TEMPDOF" == 6 ]]; then
+		flirt -cost $SEARCH_COST -searchcost $SEARCH_COST -in ${DIR_TMP}/${BASENAME_ORI}.${EXTEN} -ref ${DIR_TMP}/${BASENAME_REF}.${EXTEN}.img -out ${DIR_TMP}/${BASENAME_OUT}.${EXTEN} -omat ${DIR_TMP}/${BASENAME_OUT}.omat.${EXTEN} -dof $TEMPDOF $ANGLE $LIM_COMMAND	
+		if [[ $? != 0 ]]; then
+		    echo WARNING: Rigid registering failed for ${BASENAME_ORI}.${EXTEN}. Using original input as output instead.
+		    cp ${DIR_TMP}/${BASENAME_ORI}.${EXTEN}.hdr ${DIR_TMP}/${BASENAME_OUT}.${EXTEN}.hdr
+		    cp ${DIR_TMP}/${BASENAME_ORI}.${EXTEN}.img ${DIR_TMP}/${BASENAME_OUT}.${EXTEN}.img
+		fi
+	    fi
+
+	else
+	    echo ${DIR_TMP}/${BASENAME_ORI}.${EXTEN}.img: No such file
+	fi    
+    fi
+    m=$((${m}+1))
+
+    done
+done 
+
+set -e
+
+if [ $SYS == SunOS ]; then
+    echo Output as Big-endian format.
+    cat ${DIR_TMP}/${BASENAME_OUT}.??.img > ${DIR_TMP}/${BASENAME_OUT} #output scanner-order file
+else
+    echo Transferring output to Big-endian format...
+    cat ${DIR_TMP}/${BASENAME_OUT}.??.img | shredder 0 -$TYPESIZE 0 > ${DIR_TMP}/${BASENAME_OUT}
+fi
+
+cat ${DIR_TMP}/${BASENAME_OUT}.omat.?? > ${DIR_TMP}/${BASENAME_OUT}.omat.txt #transformations
+
+# Check -omat input from user #
+if [[ "$FLAG_OMAT" == 1 ]]; then
+    cp ${DIR_TMP}/${BASENAME_OUT}.omat.txt ${OUT_MAT}
+fi
+
+
+# Create file of central slice for checking #
+echo Making img and hdr files for slice checking...
+if [[ $FILE_SLICECHECK != "" ]]; then
+
+    #ACQSIZE=$(($DATADIM_X*$DATADIM_Y*$DATADIM_Z*$TYPESIZE))
+    OFFSET=$(($DATADIM_X*$DATADIM_Y*$((DATADIM_Z/2))*$TYPESIZE))
+    shredder $OFFSET $(($DATADIM_X*$DATADIM_Y*$TYPESIZE)) $(($DATADIM_X*$DATADIM_Y*$(($DATADIM_Z-1))*$TYPESIZE)) < ${DIR_TMP}/${BASENAME_OUT} > ${FILE_SLICECHECK}.img
+    
+    # Making header file in big-endian
+    analyzeheader -voxeldims $VOXELDIM_X $VOXELDIM_Y $VOXELDIM_Z -datadims $DATADIM_X $DATADIM_Y $COMPONENT -datatype ${DATATYPE} > ${FILE_SLICECHECK}.hdr 
+fi
+
+if [[ $OUT_SCAN != "" ]]; then
+    cp ${DIR_TMP}/${BASENAME_OUT} $OUT_SCAN
+fi
+
+# Transfer output file to voxel-order:
+echo  Transfer output file to voxel-order...
+scanner2voxel -voxels ${NO_VOXEL} -inputdatatype ${DATATYPE} -outputdatatype ${DATATYPE} -components ${COMPONENT} -inputfile ${DIR_TMP}/${BASENAME_OUT} > ${OUTPUTFILE}
+
+
+# Deal with junk file #
+if [[ "$FLAG_JUNK" == 1 ]]; then
+    echo Junk files are kept in ${DIR_TMP}
+else
+    echo Removing junk files...
+    rm -r ${DIR_TMP}
+fi
+
+echo Scheme file not updated.
+echo Aligned data set output to ${OUTPUTFILE}.
+echo Program finished at 
+date

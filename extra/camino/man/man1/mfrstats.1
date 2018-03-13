@@ -1,0 +1,195 @@
+.\" $Id: mfrstats.1,v 1.5 2006/04/20 12:54:35 ucacdxa Exp $
+
+.TH mfrstats 1
+
+.SH NAME
+mfrstats \- Computes statistics of populations of multiple fibre directions.
+
+.SH SYNOPSIS
+.B mfrstats
+-voxels <num voxels> [\fIoptions\fR]
+
+.SH DESCRIPTION
+Reads in the output of sfpeaks and computes statistics of the distribution of peak
+directions and shape properties in the results. Used mostly with simulations for
+performance analysis or calibration.
+
+The output is:
+
+ - number of trials (voxels in input), 
+ - fraction of successful trials (see below)
+ - mean mean(SF) 
+ - std mean(SF) 
+ - mean std(SF) 
+ - std std(SF) 
+ - for each direction 
+   - mean direction (x, y, z), 
+   - mean dyadic eigenvalues (l1, l2, l3), 
+   - mean SF value, 
+   - std SF value, 
+   - mean SF largest Hessian eigenvalue 
+   - std SF largest Hessian eigenvalue 
+   - mean SF smallest Hessian eigenvalue 
+   - std SF smallest Hessian eigenvalue
+
+Note that the order in which the multiple fibre reconstructions output multiple
+directions is arbitrary, so we need to cluster the directions into those which
+correspond. This program uses a minor generalization of the simple iterative algorithm
+described in Alexander and Barker, NeuroImage 27 2005 to associate corresponding
+directions from each trial.
+
+A trial is considered successful if the sfpeaks consistency flag is one and the number of
+peaks is greater than or equal to the expected number, which is provided by the user with
+the -expect option. Statistics are computed only over successful trials.
+
+The dyadic of a direction n is the 3x3 matrix n n^T. The mean dyadic is the average the
+the dyadics for corresponding directions over all trials. The first eigenvalue kappa_1 of
+the mean dyadic indicates the concentration of the population of directions; the closer
+kappa_1 is to one the greater the concentration. Another common concentration statistic,
+used for example in Alexander and Barker, NeuroImage 27 2005, is gamma = -log(1-kappa_1).
+
+.SH EXAMPLES
+Here are some examples using synthetic data with q-ball.
+
+qballmx -schemefile test/bmx7.scheme > /tmp/BMX7_QBMX.Bdouble
+
+datasynth -voxels 20 -testfunc 1 -schemefile test/bmx7.scheme -snr 16 | linrecon -
+test/bmx7.scheme /tmp/BMX7_QBMX.Bdouble -normalize | sfpeaks -inputmodel rbf -rbfpointset
+246 -density 100 | mfrstats -expect 1 -voxels 20 | double2txt
+
+Outputs the following:
+
+ 2.000000E01	Number of trials
+ 1.000000E00	Fraction of successful trials (with the right number of peaks)
+ 2.581409E00	Mean of the mean ODFs
+ 6.621930E-02	Std of the mean ODFs
+ 3.656060E-01	Mean of the std ODFs
+ 2.705766E-02	Std of the std ODFs
+ 9.997683E-01	|
+ -1.486494E-02	| Mean principal direction is along x.
+ -1.556928E-02	|
+ 9.990123E-01	:
+ 6.524040E-04	: Mean dyadic eigenvalues.  \kappa_1 is 0.9990123
+ 3.352620E-04	:
+ 4.249405E00	Mean value at peak
+ 1.190887E-01	Std value at peak
+ -7.553887E00	Mean largest Hessian eigenvalue at peak
+ 1.252532E00	Std largest Hessian eigenvalue at peak
+ -9.320753E00	Mean smallest Hessian eigenvalue at peak
+ 1.072040E00	Std smallest Hessian eigenvalue at peak
+ 0.000000E00
+ :		The rest of the output is zero, as each ODF has only one peak
+ 0.000000E00
+
+
+The following is a simple investigation of how the direction concentration varies with
+noise level. This time we use a test function with two directions, which q-ball finds
+harder to reconstruct. Note how shredder pulls out the tenth number from each output,
+which is the first eigenvalue of the mean dyadic, kappa_1. As expected, kappa_1 and thus
+the direction concentration, increases with SNR.
+
+for snr in 4 8 12 16 20 24 28 32; do echo SNR is $snr kappa1 is; datasynth -voxels 20
+-testfunc 3 -schemefile test/bmx7.scheme -snr $snr | linrecon - test/bmx7.scheme
+/tmp/BMX7_QBMX.Bdouble -normalize | sfpeaks -inputmodel rbf -rbfpointset 246 -density 100
+| mfrstats -expect 2 -voxels 20 | shredder $((8*9)) 8 10000 | double2txt; done
+
+ SNR is 4 kappa1 is
+ 7.979403E-01
+ SNR is 8 kappa1 is
+ 9.448329E-01
+ SNR is 12 kappa1 is
+ 9.734752E-01
+ SNR is 16 kappa1 is
+ 9.878569E-01
+ SNR is 20 kappa1 is
+ 9.943226E-01
+ SNR is 24 kappa1 is
+ 9.964570E-01
+ SNR is 28 kappa1 is
+ 9.975895E-01 
+ SNR is 32 kappa1 is
+ 9.982465E-01
+
+
+
+Similar examples using PASMRI. For PASMRI, we stick with the default density of 1000 in
+sfpeaks, since the functions are spikier so peaks are harder to find.
+
+datasynth -voxels 20 -testfunc 1 -schemefile test/bmx7.scheme -snr 16 | mesd -schemefile
+test/bmx7.scheme -filter PAS 1.4 | sfpeaks -inputmodel maxent -mepointset 54 | mfrstats
+-expect 1 -voxels 20 | double2txt
+
+Outputs the following:
+
+ 2.000000E01	Number of trials
+ 1.000000E00	Fraction of successful trials (with the right number of peaks)
+ 9.735838E-18	Mean of the mean PASs
+ 4.243754E-17	Std of the mean PASs
+ 1.871073E-31	Mean of the std PASs
+ 8.155818E-31	Std of the std PASs
+ 9.999753E-01	|
+ -7.003564E-03	| Mean principal direction is along x.
+ 6.280887E-04	|
+ 9.989441E-01	: 
+ 6.807674E-04	: Mean dyadic eigenvalues.  \kappa_1 is 0.9989441
+ 3.750962E-04	:
+ 1.940459E-15	Mean value at peak
+ 8.458267E-15	Std value at peak
+ -3.890602E-13	Mean largest Hessian eigenvalue at peak
+ 1.695874E-12	Std largest Hessian eigenvalue at peak
+ -3.843908E-13	Mean smallest Hessian eigenvalue at peak
+ 1.675521E-12	Std smallest Hessian eigenvalue at peak
+ 0.000000E00
+ :		The rest of the output is zero, as each ODF has only one peak
+ 0.000000E00
+
+
+How the direction concentration varies with noise level for PAS:
+
+for snr in 4 8 12 16 20 24 28 32; do echo SNR is $snr kappa1 is; datasynth -voxels 20
+-testfunc 3 -schemefile test/bmx7.scheme -snr $snr | mesd -schemefile test/bmx7.scheme
+-filter PAS 1.4 | sfpeaks -inputmodel maxent -mepointset 54 | mfrstats -expect 2 -voxels
+20 | shredder $((8*9)) 8 10000 | double2txt; done
+
+ SNR is 4 kappa1 is
+ 8.640165E-01
+ SNR is 8 kappa1 is
+ 9.704359E-01
+ SNR is 12 kappa1 is
+ 9.928484E-01
+ SNR is 16 kappa1 is
+ 9.942860E-01
+ SNR is 20 kappa1 is
+ 9.977806E-01
+ SNR is 24 kappa1 is
+ 9.975917E-01
+ SNR is 28 kappa1 is
+ 9.989544E-01
+ SNR is 32 kappa1 is
+ 9.992704E-01
+
+.SH OPTIONS
+.TP
+Standard IO options, as listed in modelfit(1).
+
+.TP
+.B \-voxels\fR <\fInumber of voxels\fR>
+The number of voxels in the input data.  Defaults to one, so must be specified.
+
+.TP
+.B \-expect\fR <\fInum. directions\fR>
+Specify the expected number of directions.  By default the expected number is set to -1,
+so all trials are successful unless sfpeaks failed.
+
+.TP
+.B \-numpds\fR <\fIindex\fR>
+The number of principal directions per voxel in the input (ie, output of sfpeaks(1)). The
+default is 3, as in sfpeaks(1).
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+consfrac(1), invstats(1), modelfit(1), twotenfit(1), threetenfit(1)
+
+.SH BUGS

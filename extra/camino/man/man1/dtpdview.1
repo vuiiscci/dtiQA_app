@@ -1,0 +1,74 @@
+.\" $Id: dtpdview.1,v 1.4 2006/05/24 13:14:54 ucacpco Exp $
+
+.TH "dtpdview" 1
+.SH NAME
+dtpdview \- Visualizes principal directions of diffusion tensors
+
+.SH SYNOPSIS
+.B dtpdview
+-datadims <\fIx\fR> <\fIy\fR> <\fIz\fR> [-fathresh <\fIthreshold\fR>] -maxcomponents
+<\fImax tensors per voxel\fR>
+
+.SH DESCRIPTION
+This command acts as a wrapper to the more powerful \fBpdview\fR program. The
+\fBpdview\fR program has several additional capabilities. It can load any scalar volume
+(\fBdtpdview\fR always uses the fractional anisotropy) and visualise principal directions
+extracted with sfpeaks.
+
+The program loads the eigensystem of a diffusion tensor data set and displays the
+fractional anisotropy and a 2D projection of the principal directions.
+
+The program reads the eigen decomposition of a diffusion tensor volume, in the format
+produced by \fBdteig\fR. One or two tensors per voxel may be displayed. If there are two
+tensors in a voxel, the displayed anisotropy is the mean of the two tensor anisotropies.
+
+The default plane view is axial and the user may switch to sagittal or coronal by
+clicking the buttons at the top of the screen. Next to the plane selection buttons is the
+currently selected slice, with the zoomed area outlined in yellow. Click anywhere on this
+image to centre the zoomed area. The main window shows the zoomed area in larger detail.
+The principal directions in each voxel are drawn as lines.
+
+The default input data type is double.
+
+.SH OPTIONS
+.TP
+.B \-datadims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The dimensions of the image, in voxels.
+
+.TP
+.B \-fathresh\fR <\fIvalue\fR>
+The fractional anisotropy threshold. The principal direction is not displayed in a voxel
+unless the anisotropy is greater than the specified value. The default is 0.
+
+.TP
+.B \-maxcomponents\fR <\fImax tensors per voxel\fR>
+Maximum number of tensor components in each voxel. The default is 1.
+
+.SH EXAMPLES
+
+Run dteig on a 128x128x60 tensor data set, and view the principal directions.
+
+dteig -inputmodel dt < subjectA.Inv1.Bdouble | dtpdview -datadims 128 128 60
+
+Read data from the file subjectA.Inv1.eig.Bdouble and display principal directions in
+white matter.
+
+dtpdview -inputfile subjectA.Inv1.eig.Bdouble -datadims 128 128 60 -fathresh 0.15
+
+Equivalently, use the pdview program (recommended)
+
+pdview -inputfile subjectA.Inv1.eig.Bdouble -inputmodel dteig -datadims 128 128 60
+-scalarthresh 0.15 -scalarrange 0 1.
+
+Display principal directions for a multi-tensor volume (see multitenfit(1)).
+
+dteig -inputmodel multitensor < subjectA.Inv32.Bdouble | dtpdview -datadims 128 128 60
+-maxcomponents 2
+
+.SH "AUTHORS"
+Philip Cook <p.cook@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+dteig(1), pdview(1)
+
+.SH BUGS

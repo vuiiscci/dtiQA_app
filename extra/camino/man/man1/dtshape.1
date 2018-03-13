@@ -1,0 +1,83 @@
+.\" $Id$
+
+.TH dtshape 1
+
+
+.SH NAME
+dtshape \- Computes DT shape statistics.
+
+
+.SH SYNOPSIS
+.B dtshape 
+\fB\-inputfile\fR \fI<eig>\fR \fB\-stat\fR <\fIstatistic\fR> 
+
+
+.SH DESCRIPTION
+
+Computes tensor shape statistics based on the eigenvalues l1 >= l2 >= l3. The full list
+of statistics is
+
+  <\fIcl\fR> = (l1 - l2) / l1 , a measure of linearity,
+   
+  <\fIcp\fR> = (l2 - l3) / l1 , a measure of planarity,
+  
+  <\fIcs\fR> = l3 / l1 , a measure of isotropy.
+
+Note that
+
+   cl + cp + cs = 1 .
+
+  <\fIl1\fR> = first eigenvalue
+
+  <\fIl2\fR> = second eigenvalue
+
+  <\fIl3\fR> = third eigenvalue
+
+  <\fItr\fR> = l1 + l2 + l3
+
+  <\fImd\fR> = tr / 3
+
+  <\fIrd\fR> = (l2 + l3) / 2
+
+  <\fIfa\fR> = fractional anisotropy. (Basser et al, J Magn Reson B 1996) 
+
+  <\fIra\fR> = relative anisotropy (Basser et al, J Magn Reson B 1996)
+
+  <\fI2dfa\fR> = 2D FA of the two minor eigenvalues l2 and l3  
+                sqrt(2 * [ (l2 - <l>)^2 + (l3 - <l>)^2 ] / (l2^2 + l3^2) )
+               
+                <l> = (l2 + l3) / 2
+
+The input to the program is the output of \fBdteig\fR.
+
+
+.SH EXAMPLES
+
+Compute the linear statistic for a data set
+
+  dteig < A.inv1.Bdouble | dtshape -stat cl -outputdatatype float > A.inv1.cl.Bfloat
+
+
+Compute RA for a data set, output as NIFTI:
+
+  cat dt_eig_sys.Bdouble | dtshape -stat ra -header data.nii.gz -outputfile ra.nii.gz
+
+
+Compute the planar statistic cp for a data set with two tensors in each voxel
+
+  dteig -inputmodel multitensor -maxcomponents 2 < A.inv31.Bdouble | dtshape -stat cp > A.inv31.cp.Bdouble
+
+
+.SH OPTIONS
+
+.TP
+.B \-stat\fR <\fIstat\fR>
+The statistic to compute. See the list of statistics in the DESCRIPTION section.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+fa(1), dteig(1)
+
+.SH BUGS

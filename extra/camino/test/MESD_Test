@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# This directory (and all subdirs) is deleted at the end of the test
+DATADIR=/tmp/mesdtest
+
+if [ -e $DATADIR ]; then
+echo "Cannot create temporary directory $DATADIR for testing (directory already exists)"
+exit 1
+fi
+
+mkdir $DATADIR
+
+bin/datasynth -testfunc 1 -voxels 1 -schemefile test/bmx7.scheme -snr 16 | java -mx500M apps/MESD -schemefile test/bmx7.scheme -filter SPIKE 1.4 > $DATADIR/testSPIKE.Bdouble
+java apps/BinaryToText -inputdatatype double < $DATADIR/testSPIKE.Bdouble
+
+# Test plotting, anisotropy and PD_Stats
+echo
+java apps/SphFuncBitMap -xsize 1 -ysize 1 -schemefile test/bmx7.scheme -inputmodel maxent -filter SPIKE 1.4 -mepointset 54 -pointset 4 -minifigsize 60 60 -minifigseparation 4 4 -inputdatatype double > $DATADIR/testSPIKE.gray < $DATADIR/testSPIKE.Bdouble
+echo
+java apps/SphFuncAnisotropy -schemefile test/bmx7.scheme -inputmodel maxent -filter SPIKE 1.4 -mepointset 54 -inputdatatype double < $DATADIR/testSPIKE.Bdouble | java apps/BinaryToText -inputdatatype double
+echo
+java apps/SphFuncPD_Stats -schemefile test/bmx7.scheme -inputmodel maxent -filter SPIKE 1.4 -mepointset 54 -inputdatatype double -searchradius 0.4 -density 1000 -numpds 4 < $DATADIR/testSPIKE.Bdouble | java apps/BinaryToText -inputdatatype double
+echo
+
+# Repeat for PAS.
+bin/datasynth -testfunc 1 -voxels 1 -schemefile test/bmx7.scheme -snr 16 | java -mx500M apps/MESD -schemefile test/bmx7.scheme -filter PAS 1.4 > $DATADIR/testPAS.Bdouble
+java apps/BinaryToText -inputdatatype double < $DATADIR/testPAS.Bdouble
+
+# Test plotting, anisotropy and PD_Stats
+echo
+java apps/SphFuncBitMap -xsize 1 -ysize 1 -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 54 -pointset 4 -minifigsize 60 60 -minifigseparation 4 4 -inputdatatype double > $DATADIR/testPAS.gray < $DATADIR/testPAS.Bdouble
+echo
+java apps/SphFuncAnisotropy -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 54 -inputdatatype double < $DATADIR/testPAS.Bdouble | java apps/BinaryToText -inputdatatype double
+echo
+java apps/SphFuncPD_Stats -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 54 -inputdatatype double -searchradius 0.4 -density 1000 -numpds 4 < $DATADIR/testPAS.Bdouble | java apps/BinaryToText -inputdatatype double
+echo
+
+
+# Including extra six measurements at intermediate q.
+# bin/datasynth -testfunc 1 -voxels 1 -schemefile test/bmx6.scheme -snr 16 | java -mx500M apps/MESD -schemefile test/bmx6.scheme -filter SPIKE 1.4 | java apps/BinaryToText -inputdatatype double
+
+
+# Now try with a reduced encoding in the representation.
+bin/datasynth -testfunc 1 -voxels 1 -schemefile test/bmx7.scheme -snr 16 | java -mx500M apps/MESD -schemefile test/bmx7.scheme -filter PAS 1.4 -mepointset 30 > $DATADIR/testPAS_30.Bdouble
+java apps/BinaryToText -inputdatatype double < $DATADIR/testPAS_30.Bdouble
+echo
+java apps/SphFuncBitMap -xsize 1 -ysize 1 -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 30 -pointset 4 -minifigsize 60 60 -minifigseparation 4 4 -inputdatatype double > $DATADIR/testPAS_30.gray < $DATADIR/testPAS_30.Bdouble
+echo
+java apps/SphFuncAnisotropy -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 30 -inputdatatype double < $DATADIR/testPAS_30.Bdouble | java apps/BinaryToText -inputdatatype double
+echo
+java apps/SphFuncPD_Stats -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 30 -inputdatatype double -searchradius 0.4 -density 1000 -numpds 4 < $DATADIR/testPAS_30.Bdouble | java apps/BinaryToText -inputdatatype double
+echo
+
+# Try with numerical integration tests switched off and reduced encoding.
+bin/datasynth -testfunc 1 -voxels 1 -schemefile test/bmx7.scheme -snr 16 | java -mx500M apps/MESD -schemefile test/bmx7.scheme -filter PAS 1.4 -mepointset 30 -fastmesd > $DATADIR/testFastPAS_30.Bdouble
+java apps/BinaryToText -inputdatatype double < $DATADIR/testFastPAS_30.Bdouble
+echo
+java apps/SphFuncBitMap -xsize 1 -ysize 1 -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 30 -pointset 4 -minifigsize 60 60 -minifigseparation 4 4 -inputdatatype double > $DATADIR/testFastPAS_30.gray < $DATADIR/testFastPAS_30.Bdouble
+echo
+java apps/SphFuncAnisotropy -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 30 -inputdatatype double < $DATADIR/testFastPAS_30.Bdouble | java apps/BinaryToText -inputdatatype double
+echo
+java apps/SphFuncPD_Stats -schemefile test/bmx7.scheme -inputmodel maxent -filter PAS 1.4 -mepointset 30 -inputdatatype double -searchradius 0.4 -density 1000 -numpds 4 < $DATADIR/testFastPAS_30.Bdouble | java apps/BinaryToText -inputdatatype double
+echo
+
+
+
+# THIS GOES LAST careful, use of rm -rf
+rm -rf $DATADIR

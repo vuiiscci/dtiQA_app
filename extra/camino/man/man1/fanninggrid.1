@@ -1,0 +1,55 @@
+.\" $Id: FanningGrid.1,v 1.11 2006/06/30 14:16:33 snedjati Exp $
+
+.TH fanninggrid 1
+
+.SH NAME
+fanninggrid \- Creates a voxel grid simulating fanning structure.
+
+.SH SYNOPSIS
+.B fanninggrid -diffusivity <number> -volfrac <number> -gridsize <x y z> -centredist <number> -outputfile <filename>
+
+.SH DESCRIPTION
+Creates a three-dimesional voxel grid. For each voxel, generates volume fraction of the
+anisotropic component, diffusivity, and orientation of the anisotropic component, in
+accordance with the ball and stick method descibed by Behrens et al in MRM(50) 1077-1088,
+2003. The orientation for each voxel is the same as the orientation of the radial line of
+a circle passing through the centre of the voxel. The position of the centre of the
+circle relative to the centre of the voxel grid is specified by centredist.
+
+.SH EXAMPLES
+
+Create a voxel grid with dimensions 6 \times 8 \times 4 units, with circle at distance of
+5 units from the centre of the voxel grid, volume fraction of 0.75 and diffusivity of
+1.5E-9 for each voxel and store the output in testFan.Bdouble:
+
+fanninggrid -diffusivity 1.5E-9 -volfrac 0.75 -gridsize 6 8 4 -centredist 5 -outputfile
+testFan.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-diffusivity\fR <\fInumber\fR>
+Specifies the diffusivity in each voxel in m^2 s^{-1} .
+
+.TP
+.B \-volfrac \fR <\fInumber\fR>
+Specifies the volume fraction of the anisotropic component in each voxel in the grid.
+
+.TP
+.B \-gridsize\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+Specifies the dimensions of the voxel grid.
+
+.TP
+.B \-centredist\fR <\fInumber\fR>
+Specifies the distance from the centre of the circle to the centre of the voxel grid.
+
+.TP
+.B \-outputfile\fR <\fIfilename\fR>
+Specifies the name of the file data will be output to.
+
+.SH AUTHORS
+Shahrum Nedjati-Gilani, Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+BallStick(1).
+
+.SH BUGS

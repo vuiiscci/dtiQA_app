@@ -1,0 +1,146 @@
+.\" $Id: analyzeheader.1,v 1.6 2006/04/25 19:28:38 ucacpco Exp $
+
+.TH analyzeheader 1
+
+.SH NAME
+analyzeheader \- Create or read an Analyze 7.5 header file.
+
+.SH SYNOPSIS
+.B analyzeheader 
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+Analyze image header, provides support for the most common header fields. Some fields,
+such as patient_id, are not currently supported. The program allows three nonstandard
+options: the field image_dimension.funused1 is the image scale. The intensity of each
+pixel in the associated .img file is (image value from file) * scale. Also, the origin of
+the Talairach coordinates (midline of the anterior commisure) are encoded in the field
+data_history.originator. These changes are included for compatibility with SPM.
+
+All headers written with this program are big endian by default.
+
+.SH EXAMPLES
+
+  analyzeheader -datadims 128 128 60 -voxeldims 1.7 1.7 2.3 -datatype
+                double > subjectA.hdr
+
+Initialize a new header from an existing file, and apply options
+
+  analyzeheader -initfromheader subjectA.hdr -datatype float 
+                > subjectB.hdr
+
+The header subjectB.hdr is identical to subjectA.hdr except that its data type is float.
+
+Get the data / voxel dimensions of an image as a string, suitable for passing to another
+Camino program.
+
+  analyzeheader -printimagedims subjectA.hdr
+
+The above command prints the data and voxel dimensions of the image, "-datadims 128 128
+60 -voxeldims 1.7 1.7 2.3". This can be used with Camino programs that require this
+information. For example,
+
+  dteig < subjectA.dt.Bdouble | pdview `analyzeheader -printimagedims subjectA.hdr`
+
+To get relevant arguments for other programs, do
+
+  analyzeheader -printprogargs image.hdr program
+
+where program is one of: shredder, scanner2voxel, vcthreshselect, pdview, track. The
+program will print the args for the relevant program and exit. The list of suggested args
+for all of these programs is available via the following command:
+
+  analyzeheader -readheader image.hdr
+
+.SH OPTIONS
+
+.TP
+.B \-readheader \fR <\fIfile\fR> 
+Reads header information from \fIfile\fR and prints to stdout. If this option is not
+specified, then the program writes a header based on the other arguments.
+
+.TP
+.B \-printimagedims \fR <\fIfile\fR> 
+Prints image data and voxel dimensions as Camino arguments and exits.
+
+.TP
+.B \-printprogargs \fR <\fIfile\fR> <\fIprog\fR>
+Prints data dimension (and type, if relevant) arguments for a specific	Camino program,
+where \fIprog\fR is one of shredder, scanner2voxel, vcthreshselect, pdview, track.
+
+.TP
+.B \-printintelbyteorder \fR <\fIfile\fR>
+Prints 1 if the header is little-endian, 0 otherwise.
+
+.TP
+.B \-printbigendian \fR <\fIfile\fR>
+Prints 1 if the header is big-endian, 0 otherwise.
+
+.TP
+.B \-initfromheader \fR <\fIfile\fR> 
+Reads header information from \fIfile\fR and intializes a new header with the  values
+read from the file. You may replace any combination of fields in the new header by
+specifying subsequent options.
+
+.TP
+.B \-datadims \fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+Dimensions of the data in the img file, in voxels.
+
+.TP
+.B \-voxeldims \fR <\fIxv\fR> <\fIyv\fR> <\fIzv\fR>
+Dimensions of the voxels in mm. 
+
+.TP
+.B \-nimages \fR <\fInumber\fR> 
+Number of images in the img file. Default 1.
+
+.TP
+.B \-datatype \fR <\fIbyte\fR | \fIchar\fR | \fI[u]short\fR | \fI[u]int\fR | \fIfloat\fR | \fIcomplex\fR
+|\fI double\fR> The char datatype is 8 bit (not the 16 bit char of Java), as specified by
+the Analyze 7.5 standard. The byte, ushort and uint types are not part of the Analyze
+specification but are supported by SPM.
+
+.TP
+.B \-offset \fR <\fIvalue\fR>
+According to the Analyze 7.5 standard, this is the byte offset in the .img file at which
+voxels start. This value can be negative to specify that the absolute value is applied
+for every image in the file.
+
+.TP
+.B \-gl \fR <\fImin\fR> <\fImax\fR>
+Minimum and maximum greylevels. Stored as shorts in the header.
+
+.TP
+.B \-scaleslope \fR <\fIvalue\fR> 
+Intensities in the image are scaled by this factor by SPM and MRICro. Default is 1.0.
+
+.TP
+.B \-scaleinter \fR <\fIvalue\fR> 
+Constant to add to the image intensities. Used by SPM and MRIcro.
+
+.TP
+.B \-description \fR <\fIstring\fR> 
+No spaces, max length 79 bytes. Will be null terminated automatically.
+
+.TP
+.B \-centre \fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+Voxel specifying origin of Talairach coordinate system for SPM, default [0 0 0].
+
+   
+.TP                        
+.B \-intelbyteorder 
+Write header in intel byte order (little-endian).
+
+.TP                        
+.B \-networkbyteorder 
+Write header in network byte order (big-endian). This is the default for new headers.
+
+                    
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+track(1), procstreamlines(1), rgbscalarimg(1), vtkstreamlines(1)
+
+.SH BUGS

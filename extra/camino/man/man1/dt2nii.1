@@ -1,0 +1,86 @@
+.\" $Id$
+
+.TH dt2nii 1
+
+.SH NAME
+dt2nii \- Converts Camino tensors to nii files.
+
+.SH SYNOPSIS
+\fBdt2nii\fR -inputfile <\fIfile\fR> -outputroot <\fIroot\fR> -header <\fIheader\fR> 
+
+.SH EXAMPLES
+
+Straight pipeline
+
+    cat data.Bfloat | dtfit - schemefile | dt2nii -header image.nii -outputroot camino_
+
+
+Convert an existing tensor file dt.Bfloat
+
+    dt2nii -inputfile dt.Bfloat -inputdatatype float -header image.nii -outputroot camino_
+ 
+
+.SH DESCRIPTION
+
+Reads Camino diffusion tensors, and converts them to NIFTI format. The output is
+dependent on the input model. For all input models, the output includes
+
+   
+  ${root}exitcode.nii[.gz] - exit codes from Camino reconstruction.
+  ${root}lns0.nii[.gz] - estimated lns0 from Camino reconstruction.
+
+For input model "dt" (the default), the diffusion tensors are written to
+
+  ${root}dt.nii[.gz]
+
+For multi-tensor data, additional files are written:
+
+  ${root}dt${i}.nii[.gz] - tensor component i
+  ${root}mix${i}.nii[.gz] - estimated mixing fraction for tensor i
+
+
+The supplied nii header (which may or may not be attached to an image) is used to
+initialize NIFTI header fields for the output. The header should correctly describe the
+physical space of the tensor image. The following fields are overwritten:
+
+  dim[0]      - set to 5 for the dt file, 3 for other images
+  intent_code - set to NIFTI_INTENT_SYMMATRIX for the dt, NIFTI_INTENT_NONE for the others
+  scl_slope   - set to 1
+  scl_inter   - set to 0
+
+The output data type can be set at run time.
+
+.SH OPTIONS
+
+.TP
+.B \-outputroot\fR <\fIroot\fR>
+Prepended onto output file names.
+
+.TP
+.B \-header\fR <\fIheader\fR>
+A Nifti .nii or .nii.gz file containing the header information. Usually this will be the
+header of the raw data file from which the diffusion tensors were reconstructed.
+
+.TP
+.B \-outputdatatype\fR <\fItype\fR>
+Overrides the defaut output data type of "float" for all images.
+
+.TP
+.B \-inputmodel\fR <\fImodel\fR>
+Either "dt" (default), "twotensor", "threetensor", "multitensor".
+
+.TP
+.B \-maxcomponents\fR <\fIcomps\fR>
+Maximum tensor components, for use with input model "multitensor". 
+
+.TP
+.B \-gzip\fR
+Write .nii.gz files instead of .nii, even if the input header is .nii.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+voxel2image(1), nii2dt(1)
+
+.SH BUGS

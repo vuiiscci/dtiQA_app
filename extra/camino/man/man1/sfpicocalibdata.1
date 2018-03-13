@@ -1,0 +1,111 @@
+.TH "sfpicocalibdata" 1
+.SH NAME
+sfpicocalibdata \- Generates Spherical Function PICo Calibration Data
+
+.SH SYNOPSIS
+.B sfpicocalibdata\fR -snr\fR <\fIS\fR> -schemefile \fR <\fIScheme file name\fR> -infooutputfile \fR <\fIinformation output filename\fR> 
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+sfpicocalibdata creates synthetic data for use with sflutgen.  The synthetic data is
+generated using a mixture of gaussians, in the same way datasynth generates data.  Each
+voxel of data models a slightly different fibre configuration (varying fractional
+anisotrpy and fibre-crossings) and undergoes a random rotation to help account for any
+directional bias in the chosen acquisition scheme.  A second file, which stores
+information about the datafile,  is generated along with the datafile.
+
+.SH EXAMPLES
+To create a calibration dataset using the default settings, use the command
+
+sfpicocalibdata -snr 20 -schemefile A.scheme -infooutputfile PICo_data.info >
+PICo_data.Bfloat
+
+The default settings create a large dataset (249,231 voxels), of which 3401 voxels
+contain a single fibre population per voxel and the rest of the voxels contain two
+fibre-populations. The amount of data produced can be varied by specifying the ranges and
+steps of the parameters for both the one and two fibre datasets used. For example, the
+command
+
+sfpicocalibdata -schemefile A.scheme -snr 20 -infooutputfile PICO_data.info -twodtfarange
+0.3 0.9 -twodtfastep 0.02 -twodtanglerange 0 0.785 -twodtanglestep 0.03925 -twodtmixmax
+0.8 -twodtmixstep 0.1 > PICO_data.Bfloat
+
+would provide 76,313 voxels of synthetic data, where 3401 voxels simulate the one fibre
+cases and 72,912 voxels simulate the various two fibre cases. However, care should be
+taken to ensure that enough data is generated for calcuating the lut.
+
+.SH OPTIONS
+sfpicocalibdata processes options in command line order.
+
+.TP
+.B \-inputfile\fR <\fIinput filename\fR>
+See modelfit(1).
+
+.TP
+.B \-outputfilestem\fR <\fIoutput filename\fR>
+See modelfit(1).
+
+.TP
+.B \-schemefile\fR <\fIScheme file name\fR>
+See modelfit(1).
+
+.TP
+.B \-infooutputfile\fR <\fIinformation output filename\fR>
+The name to be given to the information output filename.
+
+.TP
+.B \-trace\fR <\fIthe trace\fR>
+See datasynth(1).
+
+.TP
+.B \-onedtfarange\fR <\fIthe fa range for the single tensor case\fR>
+This flag is used to provide the minimum and maximum fa for the single tensor synthetic
+data
+
+.TP
+.B \-onedtfastep\fR <\fIthe fa step size for the single tensor\fR>
+controls how many steps there are between the minimum and maximum fa settings
+
+.TP
+.B \-twodtfarange\fR <\fIthe fa range for the two tensor case\fR>
+This flag is used to provide the minimum and maximum fa for the two tensor synthetic
+data.  The fa is varied for both tensors to give all the different permutations
+
+.TP
+.B \-twodtfastep\fR <\fIthe fa step size for the two tensor case\fR>
+controls how many steps there are between the minimum and maximum fa settings for the two
+tensor cases
+
+.TP
+.B \-twodtanglerange\fR <\fIthe crossing angle range for the two fibre cases\fR>
+Use this flag to specify the minimum and maximum crossing angles between the two fibres
+
+.TP
+.B \-twodtanglestep\fR <\fIthe crossing angle step size\fR>
+controls how many steps there are between the minimum and maximum crossing angles for the
+two tensor cases
+
+.TP
+.B \-twodtmixmax \fR <\fImixing parameter\fR>
+controls the proportion of one fibre population to the other.  the minimum mixing
+parameter is (1 - twodtmixmax)
+
+.TP
+.B \-twodtmixstep\fR <\fIthe mixing parameter step size for the two tensor case\fR>
+Used to specify how many mixing parameter increments to use
+
+.TP
+.B \-snr\fR <\fIS\fR>
+See datasynth(1).
+
+.TP
+.B \-seed\fR <\fIseed\fR>
+See datasynth(1).
+
+.SH "AUTHORS"
+Phil Cook <camino@cs.ucl.ac.uk> Kiran K Seunarine <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+sflutgen(1)
+
+.SH BUGS

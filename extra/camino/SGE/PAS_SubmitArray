@@ -1,0 +1,112 @@
+#!/bin/bash
+#
+# Submits PASMRI jobs to the SGE server for each foreground
+# voxel of a data set.  This version uses array jobs to submit
+# the jobs in one go.
+#
+# $Id: PAS_Submit,v 1.3 2006/03/28 11:01:34 ucacdxa Exp $
+
+set -e
+
+# The camino directory.
+CAMINO=/home/ucacdxa/camino
+
+# Find the directory we are in and containing this script.
+PWD=`pwd`
+SCRIPTDIR=${0%/*}
+
+if [ $# != 6 ]; then
+    echo "Usage: PAS_SubmitArray <data file> <mask> <number of voxels> <scheme file> <number of b=0 measurements> <output directory>"
+    exit
+fi
+
+DATAFILE=$1
+MASK=$2
+NUMVOX=$3
+SCHEMEFILE=$4
+NUMZEROMEAS=$5
+OUTPUTDIR=$6
+
+echo $NUMVOX
+
+if [ ! -d $OUTPUTDIR ]; then
+    mkdir $OUTPUTDIR
+fi
+
+SHREDDER=${CAMINO}/bin/shredder
+CHAR2TXT=${CAMINO}/bin/char2txt
+WRITEZEROS=${CAMINO}/SGE/WriteZeros
+PADDER=${CAMINO}/SGE/StringZeroPad
+ARRAYWRAPPER=${CAMINO}/SGE/ArrayWrapper.csh
+
+# Construct the template background files.
+SCROOT=${SCHEMEFILE##*/}
+BGTEMPLATEFILE=/tmp/${SCROOT%%.*}BG_Template.Bdouble
+BGPDTEMPLATEFILE=/tmp/${SCROOT%%.*}BGPD_Template.Bdouble
+
+# Compute the number of components in the output files.
+OUTCOMPS=`wc -l <$SCHEMEFILE`
+OUTCOMPS=$((3-$NUMZEROMEAS+($OUTCOMPS-2)/3))
+PDCOMPS=30
+
+$WRITEZEROS $OUTCOMPS -exitcode -1 > $BGTEMPLATEFILE
+$WRITEZEROS $PDCOMPS -exitcode -1 > $BGPDTEMPLATEFILE
+
+# Construct the name of the file containing the list
+# of jobs.
+DFROOT=${DATAFILE##*/}
+ARRAYFILE=${PWD}/${DFROOT%%.*}ArrayJobs.txt
+if [ -f $ARRAYFILE ]; then rm $ARRAYFILE; fi
+
+# Chunk size is the number of mask voxels to process in one go.
+# If it is too small, too many shredder and char2txt processes
+# slow everything down.  If it is too large, shell fails to 
+# store the whole string of mask values.
+CHUNKSIZE=256
+
+NUMFG=0
+NUMTOT=0
+for((i=0; $i<$NUMVOX/$CHUNKSIZE+1; i=$i+1)); do
+
+echo $i
+
+    # Get the mask value.
+    M=`$SHREDDER $((i*CHUNKSIZE)) $CHUNKSIZE 100000000 < $MASK | $CHAR2TXT`
+
+    # Need special treatment for the last chunk if the number of voxels
+    # does not divide exactly by the chunksize.
+    if [ $(((i+1)*CHUNKSIZE)) -gt $NUMVOX ]; then
+        REMSIZE=$((NUMVOX - i*CHUNKSIZE))
+        M=`$SHREDDER $((i*CHUNKSIZE)) $REMSIZE 100000000 < $MASK | $CHAR2TXT`
+    fi
+
+    for j in $M; do
+
+	# Check whether the file already exists and if so do
+	# nothing.
+	VNPAD=`$PADDER $NUMTOT 8`
+	if [ ! -s ${OUTPUTDIR}/${VNPAD}.Bdouble ] || [ ! -s ${OUTPUTDIR}/${VNPAD}_PDs.Bdouble ]; then
+
+	    if [ ! $j == "0" ]; then 
+		echo "${CAMINO}/SGE/VoxelPAS $NUMTOT $DATAFILE $SCHEMEFILE $OUTPUTDIR" >> $ARRAYFILE
+		NUMFG=$((NUMFG+1))
+	    else
+		cp $BGTEMPLATEFILE $OUTPUTDIR/${VNPAD}.Bdouble
+		cp $BGPDTEMPLATEFILE $OUTPUTDIR/${VNPAD}_PDs.Bdouble
+	    fi
+
+	fi
+
+	NUMTOT=$((NUMTOT+1))
+    done
+
+done
+
+if [ $NUMFG -gt 0 ]; then
+    echo "Submitting $NUMFG foreground jobs listed in $ARRAYFILE"
+    qsub -l s_rt=01:59:00 -t 1-${NUMFG} ${ARRAYWRAPPER} ${ARRAYFILE}
+else
+    echo "No uncomplete foreground jobs found.  Nothing to submit."
+fi
+
+

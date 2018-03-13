@@ -1,0 +1,69 @@
+.\" $Id: restore.1,v 1.6 2006/08/12 22:43:06 ucacpco Exp $
+
+.TH restore 1
+
+.SH NAME
+restore \- Fits the diffusion tensor to diffusion MRI measurements robustly using the
+RESTORE algorithm by Chang et al MRM 53 2005.
+
+.SH SYNOPSIS
+.B restore
+<data file> <scheme file> <noise std> [<outlier map file>] [options]
+
+.SH DESCRIPTION
+Operation is similar to dtfit.	The RESTORE algorithm requires an estimate of the
+standard deviation of the background noise in the measurements, which it assumes is
+uniform across the image.
+
+The exitcodes indicate the number of measurements that the RESTORE algorithm decided were
+outliers. The following exitcodes appear:
+
+ -1: background voxel, no fitting performed.
+  0: no outliers, no problems.
+  2: non-linear fitting did not converge.
+ 1000 or greater: (exitcode - 1000) outliers ignored.
+
+restore will optionally output an outlier map to indicate which measurements the
+algorithm classified as outliers. The outlier map is a voxel-order binary file containing
+a byte for each measurement with b > 0. Thus each voxel contains a byte for each non-zero
+wavenumber in the scheme file with the same ordering. If the byte is zero, the
+measurement was not an outlier and contributed to the fitted diffusion tensor; if the
+byte is one, the measurement is an outlier.
+
+restore is a wrapper for modelfit (see modelfit(1)), which provides more command line
+options if required. The command
+
+ restore <data file> <scheme file> <noise std> [<outlier map file>]
+
+is equivalent to
+
+ modelfit -inputfile <data file> -inversion -2 -schemefile <scheme file> 
+          -sigma <noise std> -outliermap <outlier map file>
+
+To read data from stdin, do
+
+ cat <data file> | restore - <scheme file> <noise std>
+
+See datastats(1) for help on how to compute sigma.
+
+.SH EXAMPLES
+Fit the diffusion tensor to the data in SubjectA.Bfloat in which the background noise
+standard deviation is 35 using RESTORE:
+
+restore SubjectA.Bfloat A.scheme 35.0 > DiffTensorA.Bdouble
+
+Equivalently:
+
+cat SubjectA.Bfloat | restore - A.scheme 35.0 > DiffTensorA.Bfloat
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), twotenfit(1), threetenfit(1), fa(1), trd(1), shfit(1), shanis(1), dtfit(1)
+
+.SH BUGS
+
+The restore algorithm can get stuck in noisy background voxels. Remove background, for
+example, by adding a -bgthresh X option where X is the b=0 intensity below which voxels
+are background.

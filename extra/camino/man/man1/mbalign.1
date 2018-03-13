@@ -1,0 +1,147 @@
+.\" $Id: mbalign.1,v 1.0 2007/03/06 08:35:19 yubaix01 Exp $
+
+.TH "mbalign" 1
+
+.SH NAME
+mbalign \- Aligns the diffusion-weighted images within a single acquisition.
+
+.SH SYNOPSIS
+.B mbalign
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+Reads DWI in voxel-order data from the standard input, fits the DT model using RESOTRE,
+synthetizes reference from the model, and aligns each measurement of input to its
+synthetic reference. Finally, it gives the output as voxel-order big-endian data file.
+
+This program requires an installation of FSL, as it uses FLIRT for alignment. By default
+the program uses a 3D affine registration to align each image, although you can tell it
+to use 3D rotations. Occasionally FLIRT fails when trying to compute 3D affine
+registrations. When it does, the program computes a 3D rigid transformation instead, just
+for that DWI. If that fails too, the output file contains a copy of the input image
+volume for that measurement.
+
+.SH OPTIONS
+mbalign processes options in command line order.
+
+.TP
+(1) Required options:
+
+.TP
+.B \-inputfile\fR <\fI input voxel-order file\fR>
+The input file must have BIG-ENDIAN ordering.
+
+.TP
+.B \-schemefile\fR <\fI Scheme file name\fR>
+
+.TP
+.B \-datadims\fR <\fI X Y Z\fR>
+Specifies the number of voxels in each dimension.
+
+.TP
+.B \-voxeldims\fR <\fI x y z\fR>
+Specifies the voxel sizes in each dimension, in millimetres.
+
+.TP
+.B \-sigma\fR <\fI noise standard deviation\fR>
+The approximate noise standard deviation, sigma. A suggested value is sqrt(E(M^2)/2),
+where M is the signal in background and E denotes expectation over an ROI. A camino
+program called datastats works it out for you. See datastats(1), modelfit(1).
+
+.TP
+(2) Optional options:
+
+.TP
+.B \-outputfile\fR <\fI output voxel-order file\fR>
+Default outfile is derived from input file name, but user can specify the file name
+including the directory.
+
+.TP
+.B \-datatype\fR <\fI data type for input and output files\fR>
+Specifies the same data type for the input and output file.  The data type can be any of
+the following strings: "char", "short", "int", "long", "float" or "double". By default,
+the input type is "float".
+
+.TP
+.B \-bgmask\fR <\fI mask file\fR>
+The data type of mask file should be "short". See modelfit(1).
+
+.TP
+.B \-bgthresh\fR <\fI background threshold\fR>
+See modelfit(1).
+
+.TP
+.B \-tmpdir\fR <\fI temp directory for calculation\fR>
+The program creates quite a lot of temporary files, which are stored in this directory.
+Deault name is derived from input file name, current date time, and is a subdirectory of
+"/tmp". But if "/tmp" is small, specifying an alternative location is necessary. User
+needs a separate directory for each data set when running "mbalgin" multiple processes
+concurrently. By default, the program removes the directory containing all the temporary
+files, but user can tell it to keep it all by adding -keepjunk.
+
+.TP
+.B \-fsldir\fR <\fI FSL directory\fR>
+Specifies the location of FSL installation, which is used to do the registration. Such as
+".../common/fsl/fslSolaris". FSL must be installed to run mbalign.
+
+.TP
+.B \-flirtsearchcost \fR <\fI search cost function used in flirt\fR>
+Default cost function is "mutualinfo" (Mutual Information). Other options are "corratio",
+"normcorr", "normmi" and "leastsq".
+
+.TP
+.B \-flirttransform\fR <\fI Transformation used in flirt\fR>
+Default transformation is "affine". The other option is "rigid".
+
+.TP
+.B \-omat\fR <\fI file name\fR>
+Output transform matrix in ascii format.
+
+.TP
+.B \-keepjunk\fR
+Tells the program to keep temporary files in the directory specified by "-tmpdir".
+Default behaviour is to remove all temporary files before program finish.
+
+.TP
+.B \-slicecheck\fR <\fI file name\fR>
+Specifies the root name of an analyze file that you can check the alignment in. After
+registration, the file contains the corresponding slice of each DWI for comparison and to
+check that nothing weird happened and that the alignment is good. If you omit
+-slicecheck, it won't output this pair of files.
+
+.TP
+.B \-eddy\fR
+Specifies registration for eddy-current induced distortion.
+
+.TP
+.B \-scanner\fR
+Regards input file is in scanner-order.  Command line example: -scanner -inputfile <file
+name>
+
+.TP
+.B \-scanout\fR <\fI output scanner-order file\fR>
+Adds an extra output file in scanner-order. This won't stop default  voxel-order output.
+
+.TP
+.B \-searchrange\fR <\fI angle\fR>
+Default is 90, which means search range is between -90 and 90 in all  x, y and z
+directions.
+
+.SH EXAMPLES
+
+Do the registration on data set A.Bfloat, and store the output in A_AlignAffine.Bfloat:
+
+mbalign -inputfile A.Bfloat -schemefile A.scheme -datadims 128 128 60 -voxeldims 2 2 2.7
+-bgthresh 200 -sigma 50 -fsldir /cs/research/medim/common0/green/common/fsl/fslRH9/
+-slicecheck /tmp/Ser02SliceCheckRigid -outputfile A_AlignAffine.Bfloat
+
+For the example above, if we do not specify -outputfile, the output will be
+/tmp/A.out.Bfloat.
+
+.SH AUTHORS
+BAI Yu <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), datasynth(1), analyzeheader(1), datastats(1).
+
+.SH BUGS

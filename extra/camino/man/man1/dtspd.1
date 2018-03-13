@@ -1,0 +1,98 @@
+.\" $Id$
+
+.TH dtspd 1
+
+.SH NAME
+dtspd \- Make diffusion tensors semi positive definite.
+
+.SH SYNOPSIS
+\fBdtspd\fR -\fB-inputfile\fR <\fIdt\fR> \fB-brainmask\fR <\fImask\fR> \fB-schemefile\fR <\fIfile\fR>
+            \fB-outputroot\fR <\fIroot\fR> [\fIoptions\fR]
+
+
+.SH DESCRIPTION
+
+Takes diffusion tensor output from modelfit and updates tensors. This can either be done by editing the
+tensor eigenvalues directly, or attempting to correct / refit the tensor using a constrained fitting
+algorithm.
+
+Required inputs are the tensors (in Camino format) and a brain mask. The output is corrected tensors
+also in Camino format. A corrected brain mask and diagnostic information are written in NIFTI format.
+
+Optionally, the DWI data can also be provided. This is required to re-fit bad tensors, and also to
+produce a count of how many diffusion coefficients (b > 0) appear to be negative (S > mean(S0)).
+
+
+The exit codes for the output tensors are:
+
+ -100    Bad data flagged by original fit, removed from brain mask
+ -2      Attempted Chol fit failed, edited eigenvalues
+ -1      Background, nothing done
+  0      Good data, nothing done
+  2      Original nonlinear fit failed, but eigenvalues non-negative
+  6      Bad data modified or excluded in in original fit, but eigenvalues non-negative
+  10     Modified tensor by changing eigenvalues
+  12     Modified tensor with Cholesky fit (and possibly also edited eigenvalues)
+
+The output eigenvalues should all be positive.
+
+
+
+.SH EXAMPLES
+
+  dtspd -inputfile dt.Bdouble -brainmask mask.nii.gz -outputroot fixed_
+
+
+If we provide the DWI data, we can either re-fit tensors or edit eigenvalues:
+
+  dtspd -inputfile dt.Bdouble -dwifile dwi.nii.gz -schemefile scheme -brainmask mask.nii.gz \
+  -editeigenvalues -outputroot fixed_
+
+
+.SH OPTIONS
+
+.TP
+.B \-brainmask\fR <\fImask\fR> 
+A mask is required, bad data will be masked out. This removes voxels with exit code -100 from
+the brain mask. 
+
+.TP
+.B \-schemefile\fR <\fIfile\fR> 
+Imaging scheme for the data. Required if DWI data is present.
+
+.TP
+.B \-dwifile\fR <\fIroi\fR>
+DWI data, required to re-fit tensors. May also be provided just to get a count of how often S > S_0.
+
+.TP
+.B \-unweightedb\fR <\fImaxUnweightedB\fR> 
+Maximum b-value to include as an unweighted measurement. Some imaging schemes have a small non-zero b-value 
+for the unweighted measurements. With this option, any b-value less than or equal to the specified value are
+treated as b=0.
+
+.TP
+.B \-editeigenvalues\fR
+Edit the eigenvalues. This is the default if there is no DWI data.
+
+.TP
+.B \-fitchol\fR
+Replace tensors with negative eigenvalues with the results of a nonlinear fit using the Cholesky
+decomposition.
+
+.TP
+.B \-winsorizedwi\fR
+Clip the DWI intensities such that max(S) = mean(S_0) * 0.9999, before re-fitting the tensor.
+
+.TP
+.B \-outputroot\fR <\fIroot\fR> 
+Prepended onto output files.
+
+
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH SEE ALSO
+modelfit(1)
+
+.SH BUGS

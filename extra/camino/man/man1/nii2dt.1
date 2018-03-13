@@ -1,0 +1,76 @@
+.\" $Id$
+
+.TH nii2dt 1
+
+.SH NAME
+nii2dt \- Converts NIFTI-1 tensors to Camino format.
+
+.SH SYNOPSIS
+.B nii2dt -inputfile [image.nii] [\fB-s0 <\fIfile\fR> | \fB-lns0 <\fIfile\fR>] [\fIoptions\fR]
+
+.SH DESCRIPTION
+This tool converts NIFTI-1 diffusion tensors to Camino format. The program reads the
+NIFTI header but does not apply any spatial transformations to the data.
+
+The output is the tensors in Camino voxel ordering: [exit, ln(S0), dxx, dxy, dxz, dyy,
+dyz, dzz].
+
+The exit code is set to 0 unless a background mask is supplied, in which case the code is
+0 in brain voxels and -1 in background voxels.
+
+The value of ln(S0) in the output is taken from a file if one is supplied, otherwise it
+is set to 0.
+
+NOTE FOR FSL USERS - FSL's dtifit can output NIFTI tensors, but they are not stored in
+the usual way (which is using NIFTI_INTENT_SYMMATRIX). FSL's tensors follow the ITK / VTK
+"upper-triangular" convention, so you will need to use the \fB-uppertriangular\fR option
+to convert these correctly.
+
+.SH EXAMPLES
+
+Convert tensors from the file image.nii, applying a brain / background segmentation
+including the unweighted signal in the output.
+
+  nii2dt -inputfile image.nii -bgmask mask.nii -lns0 lns0.nii > dt.Bdouble
+
+Alternatively, the output may be piped to any Camino program that takes tensors as input.
+
+.SH OPTIONS
+
+.TP
+.B \-inputfile\fR <\fIniftifile\fR>
+A NIFTI-1 dataset containing diffusion tensors. The tensors are assumed to be in
+lower-triangular order as specified by the NIFTI standard for the storage of symmetric
+matrices. This file should be either a .nii or a .hdr file.
+
+.TP
+.B \-s0\fR <\fIfile\fR>
+File containing the unweighted signal for each voxel, may be a raw binary file	(specify
+type with \fB\-inputdatatype\fR) or a supported image file.
+
+.TP
+.B \-lns0\fR <\fIfile\fR>
+File containing the log of the unweighted signal for each voxel, may be a raw binary file
+ (specify type with \fB\-inputdatatype\fR) or a supported image file.
+
+.TP
+.B \-bgmask\fR <\fImask\fR>
+Binary valued brain / background segmentation, may be a raw binary file  (specify type
+with \fB\-maskdatatype\fR) or a supported image file.
+
+.TP
+.B \-uppertriangular\fR
+Specifies input in upper-triangular (VTK style) order. The NIfTI symmatrix intent code
+specifies lower triangular, which is the default, this option lets you override that if
+needed.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+This program uses the public-domain niftijlib code by Kate Fissell, University of
+Pittsburgh.
+
+.SH "SEE ALSO"
+dt2nii(1), metadt2camino(1)
+
+.SH BUGS

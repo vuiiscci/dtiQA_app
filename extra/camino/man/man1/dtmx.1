@@ -1,0 +1,35 @@
+.\" $Id: dtmx.1,v 1.2 2006/04/20 12:54:34 ucacdxa Exp $
+
+.TH dtmx 1
+
+.SH NAME
+dtmx \- Creates a linear transform for fitting the diffusion tensor.
+
+.SH SYNOPSIS
+.B dtmx
+-schemefile <scheme file>
+
+.SH DESCRIPTION
+Creates a matrix file for fitting the diffusion tensor to data acquired with the scheme
+specified in <scheme file> using linrecon.
+
+.SH EXAMPLES
+Fit the diffusion tensor to the data in SubjectA.Bfloat using linear regression to the
+log measurements:
+
+ $ # Create the DT fitting matrix
+ $ dtmx -schemefile A.scheme > A_DTMX.Bdouble
+ $ # Run it over each voxel
+ $ linrecon SubjectA.Bfloat A.scheme A_DTMX.Bdouble > DiffTensorA.Bdouble
+
+The above is equivalent to:
+
+$ dtfit SubjectA.Bfloat A.scheme > DiffTensorA.Bdouble
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+linrecon(1).
+
+.SH BUGS

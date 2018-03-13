@@ -1,0 +1,185 @@
+.\" $Id$
+
+.TH subsetpoints 1
+
+.SH NAME
+subsetpoints \- Order points into subsets such that each subset has evenly spaced
+gradient directions
+
+.SH SYNOPSIS
+.B subsetpoints \fR [\fIoptions\fR]
+
+ 
+.SH DESCRIPTION
+
+This program divides a set of points on the unit sphere into subsets. The purpose of the
+program is either to divide the pointsets into subsets that are equally spread over the
+sphere, or to find a single subset containing points that are optimally spread over the
+sphere.
+
+.SH DIVIDING A POINT SET INTO SUBSETS
+
+Unless the \fB\-singlesubset\fR option is specified, each point in the input point set is
+assigned to a subset. The program searches for a division where the sets of points in
+each subset are equally spread over the sphere. Specifically, each point is modelled as
+the axis of a pair of identically charged particles on the sphere, and the program
+searches for a configuration that minimizes the electrostatic energy of pairs in the same
+subset. See Jansons and Alexander, Inverse Problems 19:1030-1046 (2003).
+
+The purpose of this is to provide subsets that are equally spread over the sphere, while
+not overlapping. If the input point set is isotropic (for example, one of the sets
+PointSets/Elec???.txt) then the union of the subsets is also isotropic.
+
+The program works best with evenly-sized subsets. The optimization does not take account
+of the size of each subset, so a division of 60 points into one subset of 50 and one
+subset of 10 would be biased, because the larger subset has more charges and hence higher
+energy. Also, changes in the configuration are proposed at random and hence a subset
+containing relatively few points will be modified less often, because it is less likely
+that one of its points will be chosen as part of a candidate state change.
+
+.SH FINDING A SINGLE SUBSET
+
+To search for a single subset, with the rest of the points in undefined order, see the
+\fB\-singlesubset\fR option. When this is specified, the program searches for a subset of
+specified size, such that the electrostatic energy of the points in the subset is
+minimal.
+
+.SH OPTIMIZATION
+
+The program uses simulated-annealing optimization to search for the best configuration.
+By default, the annealing schedule is calibrated automatically, though each of the
+annealing parameters may be changed at run time. The calibration of the temperature is
+done by finding a local minimum from a random initial configuration, and then calculating
+the mean increase in energy of subsequent random configuration changes. The temperature
+is set such that a configuration that increases the energy by the mean amount has a 70%
+chance of being accepted.
+
+Each candidate configuration change involves swapping two points that are in different
+subsets. The change is accepted or rejected depending on the difference in energy of the
+new configuration E_1 and the old configuration E_0 and the temperature T. We generate a
+random number alpha from the uniform distribution U[0,1]. The probability of accepting
+the configuration change is then
+
+	p = max { 1.0, exp[-(E_1 - E_0) / T)] }
+
+After n = 1000 attempted configuration changes, the temperature T is lowered to T(1-e),
+where e = 10^{-7}. Custom values of the temperature T, the cooling factor e and the
+number of trials n may be specified on the command line. The defaults have been chosen to
+give consistently good results over a range of different problems. To speed up an
+optimization, setting e = 1E-6 is the recommended option.
+
+For more details of the algorithm see Cook et al, Proc ISMRM 2005, p. 1305.
+
+.SH OUTPUT
+
+The output is the input point set ordered according to the subsets. If there are S
+subsets each containing P points, then the first P points in the output are the first
+subset, the second P points are the next subset, and so on. Because the optimization
+takes a long time, the program saves its state approximately every hour to two files. The
+root file name is specified by the option \fB-savestate\fR. The file root.state contains
+the current state of the system, the file root.lowestEnergy contains the lowest energy
+state found so far.
+
+The first line of the output contains information about the state of the system. The
+format is: <number of points> <number of subsets> <points in each subset> <temperature
+when file was written> <total energy> <energy of each subset>.
+
+A run may be resumed from a saved state by using the \fB\-resume\fR option. See OPTIONS.
+
+.SH EXAMPLES
+
+Find three equally-sized subsets from an electrostatically-minimized point set of 60
+directions. When using the \fB\-numsubsets\fR option, the number of points must divide
+equally into the subsets.
+
+subsetpoints -numpoints 60 -numsubsets 3 -savestate ./elec60_3 > elec60_3.points
+
+Alternatively, we can specify the number of subsets and their size explicitly. This is
+necessary if the number of points cannot be equally divided.
+
+subsetpoints -numpoints 61 -pointspersubset 16 15 15 15 -savestate ./elec061_4 >
+elec060_4.points
+
+Resume a previous run of the above optimization.
+
+subsetpoints -resume elec061_4.lowestEnergy -savestate elec061_4_resume > elec061_4
+
+Resume but set the temperature manually
+
+subsetpoints -resume elec061_4.lowestEnergy -savestate elec061_4_resume -temperature 0.1
+> elec061_4
+
+Start an optimization with a point set defined in a file. Point sets in files must be in
+one of the formats readable by pointset2scheme (see pointset2scheme(1)).
+
+cat mypoints.txt | subsetpoints -numsubsets 4 -savestate ./mypoints > mypoints60.subsets
+
+Search for the best 10 out of 52 directions, where the remaining 50 directions are in an
+undefined order.
+
+subsetpoints -numpoints 52 -singlesubset 10 -savestate ./elec52_best10 >
+elec52_best10.points
+
+.SH OPTIONS
+
+.TP
+.B \-numpoints\fR <\fIN\fR>
+The total number of points to be divided into subsets. If this option is specified, then
+the point set is Camino's electrostatic point set containing \fIN\fR points. It should
+not be specified if the point set is supplied from a file.
+
+.TP
+.B \-numsubsets\fR <\fIS\fR>
+Specifies that the point set should be divided equally into \fIS\fR equally-sized
+subsets. The total number of points must divide equally into the number of subsets.
+
+.TP
+.B \-pointspersubset\fR <\fIp\fR \fIq\fR \fIr\fR...>
+Specifies the number of points in each subset. If this is specified the
+\fB\-numsubsets\fR option is not required.
+
+.TP
+.B \-singlesubset\fR <\fIP\fR>
+Specifies that the program should look for one subset of \fIP\fR points.  Only the points
+in the subset of \fIP\fR points contribute to the energy of the system,
+
+ hence this option searches for the lowest-energy \fIP\fR out of N points. If this is
+specified, the \fB\-numbsubsets\fR option and \fB-pointspersubset\fR option should not be
+specified.
+
+.TP
+.B \-savestate\fR <\fIroot\fR>
+Saves the current state of the system to the file root.state and the best configuration
+found so far to the file root.lowestEnergy, approximately once per hour.
+
+.TP
+.B \-resume\fR <\fIstate\fR>
+Resume the optimization from the file \fIstate\fR. This option is used to resume  the
+optimization from a previous configuration.
+
+.TP
+.B \-coolingfactor\fR <\fIfactor\fR>
+Determines how quickly the system will cool from the initial temperature. The default is
+1E-7.
+
+.TP
+.B \-temperature\fR <\fIt\fR>
+The initial temperature of the system. By default, this is calibrated automatically. The
+program will terminate when the temperature falls below 1E-8.
+
+.TP
+.B \-trialsbetweencooling\fR <\fItrials\fR>
+Number of configuration changes to attempt between successive coolings. Default is 1000.
+
+.TP
+.B \-randominit\fR 
+Randomly order a point set read from a file. If the point set is specified with the
+\fB-numpoints\fR option, the random initialization is always done.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+orderpoints(1), pointset2scheme(1)
+
+.SH BUGS

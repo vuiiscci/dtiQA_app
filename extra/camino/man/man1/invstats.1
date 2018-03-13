@@ -1,0 +1,212 @@
+.\" $Id: invstats.1,v 1.4 2006/04/21 12:08:11 ucacmgh Exp $
+
+.TH invstats 1
+
+.SH NAME
+invstats \- Computes statistics of populations of diffusion tensors.
+
+.SH SYNOPSIS
+.B invstats
+-inversion <index> -voxels <num voxels>
+
+.SH DESCRIPTION
+Reads in the output of modelfit and computes statistics of the distribution of principal
+directions and shape properties in the results. Used mostly for simulations, performance
+analysis and calibration.
+
+For a single tensor inversion, the output is:
+
+ - number of trials over which statistics computed, 
+ - fraction of successful trials,
+ - mean direction (x, y, z),
+ - mean dyadic eigenvalues (l1, l2, l3),
+ - mean trace,
+ - std trace, 
+ - mean FA, 
+ - std FA.
+
+For two tensor inversions:
+
+ - number of trials over which statistics computed,
+ - fraction of successful trials,
+ - mean direction 1 (x, y, z),
+ - mean dyadic eigenvalues 1 (l1, l2, l3),
+ - mean trace 1, 
+ - std trace 1,
+ - mean FA 1,
+ - std FA 1,
+ - mean direction 2 (x, y, z),
+ - mean dyadic eigenvalues 2 (l1, l2, l3),
+ - mean trace 2,
+ - std trace 2,
+ - mean FA 2,
+ - std FA 2,
+ - mean prop,
+ - std prop.
+
+For three tensor inversions:
+
+ - number of trials over which statistics computed,
+ - fraction of successful trials,
+ - mean direction 1 (x, y, z),
+ - mean dyadic eigenvalues 1 (l1, l2, l3),
+ - mean trace 1,
+ - std trace 1,
+ - mean FA 1,
+ - std FA 1,
+ - mean direction 2 (x, y, z),
+ - mean dyadic eigenvalues 2 (l1, l2, l3),
+ - mean trace 2, 
+ - std trace 2,
+ - mean FA 2, 
+ - std FA 2,
+ - mean direction 3 (x, y, z),
+ - mean dyadic eigenvalues 3 (l1, l2, l3),
+ - mean trace 3,
+ - std trace 3,
+ - mean FA 3,
+ - std FA 3,
+ - mean prop1,
+ - std prop1,
+ - mean prop2, 
+ - std prop2 .
+
+The dyadic of a direction n is the 3x3 matrix n n^T. The mean dyadic is the average the
+the dyadics for corresponding directions over all trials. The first eigenvalue kappa_1 of
+the mean dyadic indicates the concentration of the population of directions; the closer
+kappa_1 is to one the greater the concentration. Another common concentration statistic,
+used for example in Alexander and Barker, NeuroImage 27 2005, is gamma = -log(1-kappa_1).
+
+Note that the order in which the inversions output multiple fitted tensors is arbitrary,
+so we need to cluster the directions into those which correspond. This program uses the
+simple iterative algorithm described in Alexander and Barker, NeuroImage 27 2005 to
+associate corresponding directions from each trial.
+
+.SH EXAMPLES
+Here are some examples using synthetic data.
+
+datasynth -voxels 20 -testfunc 1 -schemefile test/bmx7.scheme -snr 16 | bin/modelfit
+-schemefile test/bmx7.scheme -inversion 1 | invstats -inversion 1 -voxels 20 | double2txt
+
+Outputs the following:
+
+ 2.000000E01	Number of trials
+ 1.000000E00	Fraction of successful trials (always 1 for single tensor)
+ 9.999622E-01	| 
+ -5.471425E-03	| The mean principal direction.  Close to x, as expected
+ 6.760559E-03	| for this synthetic data.
+ 9.977014E-01	:
+ 1.622163E-03	: Three mean dyadic eigenvalues; kappa_1 = 0.977014
+ 6.764810E-04	:
+ 2.091067E-09	Mean Trace(D)
+ 7.214781E-11	Std Trace(D)
+ 8.638374E-01	Mean FA
+ 2.936898E-02	Std FA
+ 
+The following is a simple investigation of how the concentration of principal directions
+varies with noise level. Note how shredder pulls out the sixth number from each output,
+which is the first eigenvalue of the mean dyadic.
+
+for snr in 4 8 12 16 20 24 28 32; do echo SNR is $snr kappa1 is; datasynth -voxels 20
+-testfunc 1 -schemefile test/bmx7.scheme -snr $snr | modelfit -schemefile
+test/bmx7.scheme -inversion 1 | invstats -inversion 1 -voxels 20 | shredder $((8*5)) 8
+$((8*6)) | double2txt; done
+
+Using a two-tensor inversion:
+
+datasynth -voxels 20 -testfunc 3 -schemefile test/bmx7.scheme -snr 16 | bin/modelfit
+-schemefile test/bmx7.scheme -inversion 31 | invstats -inversion 31 -voxels 20 |
+double2txt
+
+Outputs:
+
+ 2.000000E01	Number of trials
+ 1.000000E00	Fraction of successful trials (always 1 for single tensor)
+ 9.998340E-01	| 
+ -1.476980E-02	| The mean first principal direction.  Close to x.
+ -1.066846E-02	| 
+ 9.932763E-01	:
+ 3.698652E-03	: Mean dyadic for first direction.
+ 3.025043E-03	:
+ 2.259456E-09	Mean Trace(D_1)
+ 8.076961E-10	Std Trace(D_1)
+ 8.338131E-01	Mean FA_1
+ 6.817987E-02	Std FA_1
+ -7.727805E-04	| 
+ 9.999895E-01	| The mean second principal direction.  Close to y.
+ -4.518970E-03	| 
+ 9.888926E-01	:
+ 6.457407E-03	: Mean dyadic for second direction.
+ 4.649951E-03	:
+ 2.798081E-09	Mean Trace(D_2)
+ 1.646975E-09	Std Trace(D_2)
+ 8.875209E-01	Mean FA_2
+ 5.012714E-02	Std FA_2
+ 5.519017E-01	Mean mixing parameter of D_1
+ 9.971714E-02	Std mixing parameter D_1
+
+Using a three-tensor inversion:
+
+datasynth -voxels 20 -testfunc 4 -schemefile test/bmx7.scheme -snr 16 | bin/modelfit
+-schemefile test/bmx7.scheme -inversion 231 | invstats -inversion 231 -voxels 20 |
+double2txt
+
+Outputs:
+
+ 2.000000E01	Number of trials
+ 1.000000E00	Fraction of successful trials (always 1 for single tensor)
+ 2.976950E-02	| 
+ 9.990879E-01	| The mean first principal direction.  Close to y.
+ -3.061276E-02	| 
+ 9.244842E-01	:
+ 5.971932E-02	: Mean dyadic for first direction.
+ 1.579646E-02	:
+ 6.190711E-09	Mean Trace(D_1)
+ 1.210998E-08	Std Trace(D_1)
+ 8.763614E-01	Mean FA_1
+ 1.152649E-01	Std FA_1
+ 1.789741E-03	| 
+ 3.642901E-02	| The mean second principal direction.  Close to z.
+ 9.993346E-01	| 
+ 9.344133E-01	:
+ 5.812832E-02	: Mean dyadic for second direction.
+ 7.458347E-03	:
+ 5.776993E-09	Mean Trace(D_2)
+ 6.946526E-09	Std Trace(D_2)
+ 9.013713E-01	Mean FA_2
+ 5.259647E-02	Std FA_2
+ 9.984848E-01	| 
+ -5.117159E-02	| The mean third principal direction.  Close to x.
+ 2.023680E-02	| 
+ 9.119526E-01	:
+ 7.157123E-02	: Mean dyadic for third direction.
+ 1.647618E-02	:
+ 2.085125E-09	Mean Trace(D_3)
+ 1.143271E-09	Std Trace(D_3)
+ 8.020855E-01	Mean FA_3
+ 1.291003E-01	Std FA_3
+ 3.172367E-01	Mean mixing parameter of D_1
+ 8.778177E-02	Std mixing parameter D_1
+ 2.996109E-01	Mean mixing parameter of D_2
+ 5.259398E-02	Std mixing parameter D_2
+
+.SH OPTIONS
+.TP
+Standard IO options, as listed in modelfit(1).
+
+.TP
+.B \-voxels\fR <\fInumber of voxels\fR>
+The number of voxels in the input data.  Defaults to one, so must be specified.
+
+.TP
+.B \-inversion\fR <\fIindex\fR>
+Specify the index of the inversion used to generate the data.  See modelfit(1) for a list
+of inversion indices.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+consfrac(1), mfrstats(1), modelfit(1), twotenfit(1), threetenfit(1)
+
+.SH BUGS

@@ -1,0 +1,119 @@
+# These are the example test runs for ModelFit for consistency
+# checking after edits to the program.
+#
+# $Id: ModelFitTestRuns,v 1.3 2005/06/15 09:50:04 ucacdxa Exp $
+
+
+# Basic noise-free one and two tensor runs.
+echo 1
+java apps/ModelFit -testfunc 1 -inversion 1 -voxels 1 -bmx 7 | bin/double2txt
+echo
+echo 2
+java apps/ModelFit -testfunc 3 -inversion 31 -voxels 1 -bmx 7 | bin/double2txt
+echo
+echo 3
+java apps/ModelFit -testfunc 4 -inversion 231 -voxels 1 -bmx 7 | bin/double2txt
+
+# Tests using the standard input as a data source rather than
+# generating data internally.  Note that we need to synthesize data
+# using bmx 6, because that is the input bmx 7 expects.
+echo 1a
+java apps/SyntheticData -testfunc 1 -inversion 1 -voxels 1 -bmx 6 | java apps/ModelFit -inversion 1 -bmx 7 | bin/double2txt
+echo
+echo 2a
+java apps/SyntheticData -testfunc 3 -inversion 31 -voxels 1 -bmx 6 | java apps/ModelFit -inversion 31 -bmx 7 | bin/double2txt
+echo
+echo 3a
+java apps/SyntheticData -testfunc 4 -inversion 231 -voxels 1 -bmx 6 | java apps/ModelFit -inversion 231 -bmx 7 | bin/double2txt
+
+# Similar but with test functions specified using the gaussmix option.
+echo
+echo 4
+java apps/ModelFit -gaussmix 1 1.7E-9 0 0 2.0E-10 0 2.0E-10 1 -inversion 1 -voxels 1 -bmx 7 | bin/double2txt
+echo
+echo 5
+java apps/ModelFit -gaussmix 2 1.7E-9 0.0 0.0 2.0E-10 0.0 2.0E-10 0.5 2.0E-10 0.0 0.0 1.7E-9 0.0 2.0E-10 0.5 -inversion 31 -voxels 1 -bmx 7 | bin/double2txt
+
+# Add a bit of noise.
+echo
+echo 6
+java apps/ModelFit -testfunc 1 -inversion 1 -voxels 2 -snr 16 -bmx 7 | bin/double2txt
+echo
+echo 7
+java apps/ModelFit -testfunc 3 -inversion 31 -voxels 2 -snr 16 -bmx 7 | bin/double2txt
+echo 8
+java apps/ModelFit -testfunc 4 -inversion 231 -voxels 2 -snr 16 -bmx 7 | bin/double2txt
+
+# Using the fixedmodq command line option.
+echo
+echo 9
+java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 1 -inversion 1 -snr 16 -voxels 2 | bin/double2txt
+echo
+echo 10
+java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 3 -inversion 31 -snr 16 -voxels 2 | bin/double2txt
+
+# Using the synthetic bootstrapper
+echo
+echo 11
+java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 1 -inversion 1 -snr 16 -voxels 2 -bootstrap 2 | bin/double2txt
+echo
+echo 12
+java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 3 -inversion 31 -snr 16 -voxels 2 -bootstrap 2 | bin/double2txt
+
+# Using scanner data
+echo
+echo 13
+java apps/ModelFit -inputfile test/FourVoxelsFromG.Bfloat -bmx 7 -inversion 1 | bin/double2txt
+echo
+echo 14
+java apps/ModelFit -inputfile test/FourVoxelsFromG.Bfloat -bmx 7 -inversion 31  | bin/double2txt
+
+
+# Test runs using InversionStats
+echo
+echo 15
+java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 1 -inversion 1 -snr 16 -voxels 10 -bootstrap 3 | java apps/InversionStats -voxels 10 -inversion 1 | bin/double2txt
+echo
+echo 16
+java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 3 -inversion 31 -snr 16 -voxels 10 -bootstrap 3 | java apps/InversionStats -voxels 10 -inversion 31 | bin/double2txt
+echo
+echo 17
+java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 4 -inversion 231 -snr 16 -voxels 10 -bootstrap 3 | java apps/InversionStats -voxels 10 -inversion 231 | bin/double2txt
+
+
+# Test the sequence statistics program
+echo
+echo 17a
+for ((i=1; $i<=10; i=$i+1)); do java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 1 -inversion 1 -snr 16 -voxels 10 -rotation $i | java apps/InversionStats -voxels 10 -inversion 1; done | java apps/SequenceStats -rotations 10 -inversion 1 | bin/double2txt
+echo
+echo 17b
+for ((i=1; $i<=10; i=$i+1)); do java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 3 -inversion 31 -snr 16 -voxels 10 -rotation $i | java apps/InversionStats -voxels 10 -inversion 31; done | java apps/SequenceStats -rotations 10 -inversion 31 | bin/double2txt
+echo
+echo 17c
+for ((i=1; $i<=10; i=$i+1)); do java apps/ModelFit -fixedmodq 64 7 185000 0.045 -testfunc 4 -inversion 231 -snr 16 -voxels 10 -rotation $i | java apps/InversionStats -voxels 10 -inversion 231; done | java apps/SequenceStats -rotations 10 -inversion 231 | bin/double2txt
+
+
+# Test the multiple-fibre reconstruction statistics program.
+echo
+echo 18
+java apps/MultiFibreReconStats -voxels 256 -expect 1 < test/P1_A200_N54_SNR16_DirStats.Bdouble | bin/double2txt
+echo
+echo 19
+java apps/MultiFibreReconStats -voxels 256 -expect 2 < test/P3_A200_N54_SNR16_DirStats.Bdouble | bin/double2txt
+echo
+echo 20
+java apps/MultiFibreReconStats -voxels 256 -expect 3 < test/P4_A200_N54_SNR16_DirStats.Bdouble | bin/double2txt
+
+
+# Test data synthesis using IO.
+echo
+echo 21
+java apps/ModelFit -testfunc 1 -inversion 1 -voxels 1 -bmx 7 | java apps/SyntheticData -inputmodel dt -bmx 6 -inputdatatype double | java apps/ModelFit -inversion 1 -voxels 1 -bmx 6 | bin/double2txt
+echo
+echo 22
+java apps/ModelFit -testfunc 3 -inversion 31 -voxels 1 -bmx 7 | java apps/SyntheticData -inputmodel twotensor -bmx 6 -inputdatatype double | java apps/ModelFit -inversion 31 -voxels 1 -bmx 7 | bin/double2txt
+echo
+echo 23
+java apps/ModelFit -testfunc 4 -inversion 231 -voxels 1 -bmx 7 | java apps/SyntheticData -inputmodel threetensor -bmx 6 -inputdatatype double | java apps/ModelFit -inversion 231 -voxels 1 -bmx 7 | bin/double2txt
+
+

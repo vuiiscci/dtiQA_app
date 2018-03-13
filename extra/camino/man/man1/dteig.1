@@ -1,0 +1,67 @@
+.\" $Id: dteig.1,v 1.11 2006/06/30 14:16:33 ucacpco Exp $
+
+.TH dteig 1
+
+.SH NAME
+dteig \- Computes the eigensystem of tensors.
+
+.SH SYNOPSIS
+.B dteig -inputmodel <dt (default) | multitensor>
+
+.SH DESCRIPTION
+Reads diffusion tensor (single, two-tensor, three-tensor or multitensor) data from the
+standard input, computes the eigenvalues and eigenvectors of each tensor and outputs the
+results to the standard output. For multiple-tensor data the program outputs the
+eigensystem of each tensor. For each tensor the program outputs: {l_1, e_11, e_12, e_13,
+l_2, e_21, e_22, e_33, l_3, e_31, e_32, e_33}, where l_1 >= l_2 >= l_3 and e_i = (e_i1,
+e_i2, e_i3) is the eigenvector with eigenvalue l_i. For three-tensor data, for example,
+the output contains thirty-six values per voxel.
+
+.SH EXAMPLES
+
+Compute the eigensystem in each voxel of diffusion MRI data set SubjectA.Bfloat and store
+the output in EigenA.Bdouble:
+
+dtfit SubjectA.Bfloat test/A.scheme | dteig > EigenA.Bdouble
+
+Compute the eigensystem for each component of the two-tensor fit to the same data set:
+
+twotenfit SubjectA.Bfloat test/A.scheme | dteig -inputmodel multitensor > EigenA.Bdouble
+
+Compute the eigensystem for 10000 independent trials of fitting the diffusion tensor to
+data synthesized from test function 1 (see datasynth(1)) using imaging scheme A.scheme
+and assuming signal to noise ratio of 16 at b=0:
+
+datasynth -testfunc 1 -voxels 10000 -snr 16 -schemefile A.scheme | dtfit - A.scheme |
+dteig > EigenA_SNR16.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-inputmodel\fR <\fImodel type\fR>
+Specifies the model that the input data contains parameters for. Possible model types
+are: "dt" (diffusion-tensor data) and "multitensor" (see multitenfit(1)). By default, the
+program assumes that the input data contains a single diffusion tensor in each voxel. If
+the input model is "multitensor", the program assumes a maximum of two tensors per voxel
+unless told otherwise with the \fB\-maxcomponents\fR option.
+
+.TP
+.B \-maxcomponents \fR <\fInumber\fR>
+The maximum number of tensor components in a voxel of the input data.
+
+.TP
+.B \-inputdatatype\fR <\fIdata type of input\fR>
+Specifies the data type of the input file.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". See camino(1).
+
+.TP
+.B \-outputdatatype\fR <\fIdata type of output\fR>
+Specifies the data type of the output data.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". See camino(1).
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+fa(1), trd(1), dtfit(1), twotenfit(1), threetenfit(1), modelfit(1).
+
+.SH BUGS

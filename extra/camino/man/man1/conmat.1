@@ -1,0 +1,117 @@
+.TH conmat 1
+
+.SH NAME
+conmat \- Creates streamline connectivity matrices
+
+.SH SYNOPSIS
+.B conmat -targetfile\fR <\fIfile\fR> \fB\-outputroot\fR \fI<root>\fR [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+Creates a connectivity matrix using a 3D label image (the target image) and a set of
+streamlines. The connectivity matrix records how many streamlines connect each pair of
+targets, and optionally the mean tractwise statistic (eg tract-averaged FA, or length).
+
+The output is a comma separated variable file or files. The first row of the output
+matrix is label names. Label names may be defined by the user, otherwise they are
+assigned based on label intensity.
+
+Starting from the seed point, we move along the streamline until we find a point in 
+a labeled region. This is done in both directions from the seed point. Streamlines are 
+counted if they connect two target regions, one on either side of the seed point. Only 
+the labeled region closest to the seed is counted, for example if the input contains 
+two streamlines:
+
+  1: A-----B------SEED---C
+
+  2: A--------SEED-----------
+
+then the output would be
+
+  A,B,C
+  0,0,0
+  0,0,1
+  0,1,0
+
+There are zero connections to A because in streamline 1, the connection to B is closer
+to the seed than the connection to A, and in streamline 2 there is no region reached 
+in the other direction.
+
+The connected target regions can have the same label, as long as the seed point is 
+outside of the labeled region and both ends connect to the same label (which may be in 
+different locations). Therefore this is allowed:
+
+  A------SEED-------A
+
+Such fibers will add to the diagonal elements of the matrix. To remove these entries, 
+run \fBprocstreamlines\fR with \fB-endpointfile\fR before running \fBconmat\fR.
+
+If the seed point is inside a labled region, it counts as one end of the connection. 
+So
+
+  ----[SEED inside A]---------B
+
+counts as a connection between A and B, while
+
+  C----[SEED inside A]---------B
+
+counts as a connection between A and C, because C is closer to the seed point.
+
+In all cases, distance to the seed point is defined along the streamline path.
+
+
+.SH EXAMPLES
+
+  cat tracts.Bdouble | conmat -targetfile targets.nii.gz -outputroot conmat_
+
+This will output conmat_sc.csv
+
+  cat tracts.Bdouble | conmat -targetfile targets.nii.gz -scalarfile fa.nii.gz -outputroot conmat_
+
+This will output conmat_sc.csv and conmat_ts.csv. The mean FA is computed for each tract;
+the average of these values is output in conmat_ts.csv.
+
+.SH OPTIONS
+
+.TP
+.B \-targetfile\fR <\ffile\fR> 
+An image containing targets, as used in \fBprocstreamlines\fR.
+
+.TP
+.B \-outputroot\fR <\fIfile\fR>
+File root for the output. The extension will be determined from the input.
+
+.TP
+.B \-scalarfile\fR <\fIfile\fR>
+Optional scalar file for computing tract-based statistics. Must be in the same space as
+the target file.
+
+.TP
+.B \-tractstat\fR <\fIstat\fR>
+Tract statistic to use. The default is "mean" if a scalar file is present. See tractstats(1) for 
+other options.
+
+.TP
+.B \-targetnamefile\fR <\fIfile\fR>
+Optional names of targets. This file should contain one entry per line, with the target
+intensity followed by the name, separated by white space or commas. For example:
+
+  1	some_brain_region
+  2     some_other_region
+
+These names will be used in the output. The names themselves should not contain commas,
+spaces should be quoted eg "some brain region". The labels may be in any order but the output 
+matrices will be ordered by label intensity.
+
+If you only want to consider a subset of labels, such as a single hemisphere, you can pass
+a target name file containing only the labels you want to use. Other labels in the target image
+will be ignored.
+
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+procstreamlines(1), tractstats(1)
+
+.SH BUGS

@@ -1,0 +1,28 @@
+.\" $Id: countseeds.1,v 1.2 2006/04/20 12:54:33 ucacdxa Exp $
+
+.TH countseeds 1
+
+.SH NAME
+countseeds \- Counts seed voxels within an image.
+
+.SH SYNOPSIS
+
+.B countseeds \fR<\fIinput image\fR> [region index]
+
+.SH DESCRIPTION
+
+A simple tool to count seed voxels within an Analyze format ROI file. The output is a
+single number, which is the total count of voxels in the file that have intensity greater
+than zero.
+
+The argument \fIinput image\fR should specify the input image. The optional argument
+region index counts seeds for a specific ROI within the image, if omitted then all ROIs
+are counted.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+track(1), procstreamlines(1)
+
+.SH BUGS

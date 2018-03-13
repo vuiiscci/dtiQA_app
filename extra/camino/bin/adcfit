@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Wrapper for modelfit that provides a simple interface for simply
+# fitting the apparent diffusion coefficient to diffusion MRI data in
+# a file.
+#
+# $Id: adcfit,v 1.2 2005/08/04 13:50:44 ucacpco Exp $
+
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+if [ $# -lt 2 ]; then
+    echo "adcfit <data file> <scheme file>"
+    exit
+fi
+
+DATAFILE=$1
+SCHEMEFILE=$2
+
+INVERSION=-1
+
+DATAOPT="-inputfile $DATAFILE"
+if [ $DATAFILE == - ]; then
+    DATAOPT=
+fi
+
+exec ${SCRIPTDIR}/modelfit $DATAOPT -schemefile $SCHEMEFILE -inversion $INVERSION
+
+
+

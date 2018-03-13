@@ -1,0 +1,107 @@
+.TH "sflutgen" 1
+.SH NAME
+sflutgen \- Generates PICo lookup tables (LUT) for multi-fibre methods such as PASMRI and
+Q-Ball.
+
+.SH SYNOPSIS
+.B sflutgen
+-infofile <\fIfilename\fR> -outputfilestem <\fIfilename stem\fR> [\fIoptions\fR]
+
+.SH DESCRIPTION
+sflutgen creates the lookup tables for the generalized multi-fibre implementation of the
+PICo tractography algorithm.  The outputs of this program are either surface or line
+coefficients up to a given order.  The calibration can be performed for different
+distributions, such as the Bingham and Watson distributions.
+
+.SH EXAMPLES
+This methods uses data from the sfpicocalibdata program for calibration.  The data is
+then reconstructed and the fibre-orientation estimates are calculated.	The example below
+uses PASMRI to reconstruct and stores a maximum of 3 fibre-orientation estimates 
+
+ sfpicocalibdata -schemefile A.scheme -infooutputfile A.info > PICo_data.Bfloat
+ mesd -schemefile A.scheme -filter PAS 1.4 < PICo_data.Bfloat | sfpeaks -inputmodel maxent -filter PAS 1.4 > PAS_Peaks.Bdouble
+
+Once the calibration data has been calculated, lut's can be generated using the command
+
+sflutgen -infofile A.info -outputstem PAS_lut < PAS_Peaks.Bdouble
+
+This command is equavalent to
+
+sflutgen -infofile A.info -outputstem PAS_lut -pdf bingham < PAS_Peaks.Bdouble
+
+These commands will give you two lut's, one called PAS_lut_oneFibreSurfaceCoeffs.Bdouble
+and the other called PAS_lut_twoFibreSurfaceCoeffs.Bdouble
+
+Each of these files contains big-endian doubles as standard. The format of the output is:
+
+ dimensions	(1 for Watson, 2 for Bingham)
+ order		(the order of the polynomial)
+ coefficient_1
+ coefficient_2
+ ...
+ coefficient_N
+
+In the case of the Watson, there is a single set of coefficients, which are ordered:
+constant, x, x^2, ..., x^order. In the case of the Bingham, there are two sets of
+coefficients (one for each surface), ordered so that
+
+ for j = 1 to order
+    for k = 1 to order
+	 coeff_i = x^j * y^k
+
+ where j+k < order
+
+.SH OPTIONS
+sflutgen flags
+
+.TP
+.B \-inputfile\fR <\fIinput filename\fR>
+See modelfit(1).
+
+.TP
+.B \-outputfilestem\fR <\fIoutput filename\fR>
+This option allows you to define the name of the generated luts.  The form of the
+filenames will be [stem]_oneFibreLUT.Bdouble and [stem]_twoFibreLUT.Bdouble
+
+.TP
+.B \-pdf\fR  <\fIwatson\fR | \fIbingham\fR>
+Sets the distribution to use for the calibration.  The default is the Bingham
+distribution, which allows elliptical probability density contours.  Currently supported
+options are:
+
+bingham - The Bingham distributionn, which allows elliptical probability density
+contours.
+
+watson - The Watson distribution. This distribution is rotationally symmetric.
+
+.TP
+.B \-binincsize\fR <\fIbin increment size\fR>
+Sets the size of the bins.  In the case of 2D histograms such as the Bingham, the bins
+are always square.  Default is 1.
+
+.TP
+.B \-minvectsperbin\fR <\fIminimum direction vectors per bin\fR>
+Specifies the minimum number of fibre-orientation estimates a bin must contain before it
+is used in the lut line/surface generation.  Default is 50.  If you get the error "no
+fibre-orientation estimates in histogram!", the calibration data set is too small to get
+enough samples in any of the histogram bins.  You can decrease the minimum number per bin
+to get things running in quick tests, but the statistics will not be reliable and for
+serious applications, you need to increase the size of the calibration data set until the
+error goes.
+
+.TP
+.B \-directmap\fR
+Use direct mapping between the eigenvalues and the distribution parameters instead of the
+log of the eigenvalues
+
+.TP
+.B \-infofile\fR <\fIInformation file filename\fR>
+The Info file that corresponds to the calibration datafile used in the reconstruction.
+
+.SH "AUTHORS"
+Kiran K Seunarine <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+sfpeaks(1), sfpicocalibrationdata(1), picopdfs(1), track(1)
+
+.SH BUGS

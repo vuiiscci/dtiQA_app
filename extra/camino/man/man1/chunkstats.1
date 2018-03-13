@@ -1,0 +1,208 @@
+.TH chunkstats 1
+
+.SH NAME
+chunkstats \- Computes basic statistics over chunks of binary input data
+
+.SH SYNOPSIS
+.B chunkstats -chunksize\fR <\fInum. values per chunk\fR> \fB\-samples\fR \fI<number of chunks per voxel>\fR <\fI-max|-mean|-min|-std\fR> [\fIoptions\fR]
+
+For each <number of samples>, chunkstats outputs the specified statistics of <number of
+samples> chunks of chunksize values, which by default are assumed to be eight-byte
+doubles.
+
+.SH DESCRIPTION
+
+Reads in a data stream consisting of repeated sets of samples (each sample is a chunk),
+eg the output of multidimensional MCMC sampling, and computes statistics, eg mean, std,
+max, min, for each element of the chunk over a set of repeats.
+
+For example for a series of input values:
+
+ 
+  S11
+  S12
+  S13
+  S21
+  S22
+  S23
+  :
+  :
+  SN1
+  SN2
+  SN3
+ 
+  chunkstats -chunksize 3 -samples 2 -mean
+ 
+  returns
+  
+  (S11+S21)/2
+  (S12+S22)/2
+  (S13+S23)/2
+  :
+  :
+  (S(N-1)1+SN1)/2
+  (S(N-1)2+SN2)/2
+  (S(N-1)3+SN3)/2
+  
+Primarily used for processing the output of fitting algorithms that process data sets
+voxel by voxel and output several candidate solutions in each voxel. chunkstats allows us
+to take an average of all the solutions in each voxel, or find one with the minimum
+fitting error, or various other choices and statistics.
+
+When multiple statistics are specified, the output order is (for those specified) mean,
+std, max, min.
+
+.SH EXAMPLES
+
+The command
+
+  datasynth -schemefile test/ActiveAxG140_PM.scheme1 -voxels 1 -synthmodel  compartment 3 CYLINDERGPD 0.7 0.6E-9 0.0  0.0  4E-6 zeppelin 0.2 0.6E-9 0.0 0.0 2E-10  Dot 
+
+generates synthetic data from a three compartment model, CylinderZeppelinDot (in the
+terminology of Panagiotaki et al NeuroImage 2012).
+
+Piping the output into
+
+  addnoise -sigma 0.01
+
+adds Rician noise so that SNR is about 100.
+
+We can run MCMC fitting to estimate the model parameters by piping the output into:
+
+  modelfit -fitmodel mmwmdfixed -fitalgorithm mcmc -burnin 1000 -samples 100 -interval 500 -noisemodel rician -sigma 0.01 -schemefile test/ActiveAxG140_PM.scheme1
+
+Since the above specifies 100 samples, the output contains 100 sets of candidate
+parameter values. Each set contains 16 values:
+
+  1. Exit code indicating success/failure of the fitting procedure. 0 means OK. -1 means background. Anything else indicates a problem.
+  2. S0 - the signal with no diffusion weighting.
+  3. f1 - the intra-axonal volume fraction (restricted compartment).
+  4. f2 - the extra-axonal white matter volume fraction (hindered compartment).
+  5. f3 - the "stationary water" volume fraction.
+  6. f4 - the CSF volume fraction.
+  7. d - the intrinsic diffusivity of intra-axonal water. Fixed to 6E-10 m^2/s.
+  8. theta - angle of colatitude of axon orientation.
+  9. phi - angle of longitude of axon orientation.
+  10. R - the axon radius index.
+  11. d - the parallel diffusivity of the hindered compartment. Fixed to 6E-10 m^2/s.
+  12. theta - angle of colatitude of principal direction of hindered diffusion (constrained equal to axon orientation).
+  13. phi - angle of longitude of principal direction of hindered diffusion (constrained equal to axon orientation).
+  14. d_tort - tortuous diffusivity of perpendicular hindered compartment (constrained to f2*d/(f1+f2)).
+  15. d_csf - CSF diffusivity. Fixed to 2E-9 m^2/s.
+  16. f_opt - the fitting residual, here averaged over all MCMC samples.
+
+so the total number of values output is 1600. You can print them all to the command line
+by piping all the commands above together and into double2txt (since the output has type
+double):
+
+  datasynth -schemefile test/ActiveAxG140_PM.scheme1 -voxels 1 -synthmodel  compartment 3 CYLINDERGPD 0.7 0.6E-9 0.0  0.0  4E-6 zeppelin 0.2 0.6E-9 0.0 0.0 2E-10  Dot | addnoise -sigma 0.01 | modelfit -fitmodel mmwmdfixed -fitalgorithm mcmc -burnin 1000 -samples 100 -interval 500 -noisemodel rician -sigma 0.01 -schemefile test/ActiveAxG140_PM.scheme1 | double2txt
+
+chunkstats provides a mechanism for summarizing a large output like this. For example, we
+can take the average of all 100 sets of 16 parameter values:
+
+  datasynth -schemefile test/ActiveAxG140_PM.scheme1 -voxels 1 -synthmodel  compartment 3 CYLINDERGPD 0.7 0.6E-9 0.0  0.0  4E-6 zeppelin 0.2 0.6E-9 0.0 0.0 2E-10  Dot | addnoise -sigma 0.01 | modelfit -fitmodel mmwmdfixed -fitalgorithm mcmc -burnin 1000 -samples 100 -interval 500 -noisemodel rician -sigma 0.01 -schemefile test/ActiveAxG140_PM.scheme1 | chunkstats -chunksize 16 -samples 100 -mean
+
+outputs
+
+  0.000000E00
+  1.000136E00
+  6.612270E-01
+  2.245753E-01
+  1.010955E-01
+  1.310221E-02
+  6.000000E-10
+  2.049676E-03
+  1.466621E01
+  4.025500E-06
+  6.000000E-10
+  2.049676E-03
+  1.466621E01
+  1.521166E-10
+  2.000000E-09
+  -5.698384E05
+
+chunkstats will also compute various other statistics. Eg, the standard deviation over
+the samples:
+
+  datasynth -schemefile test/ActiveAxG140_PM.scheme1 -voxels 1 -synthmodel  compartment 3 CYLINDERGPD 0.7 0.6E-9 0.0  0.0  4E-6 zeppelin 0.2 0.6E-9 0.0 0.0 2E-10  Dot | addnoise -sigma 0.01 | modelfit -fitmodel mmwmdfixed -fitalgorithm mcmc -burnin 1000 -samples 100 -interval 500 -noisemodel rician -sigma 0.01 -schemefile test/ActiveAxG140_PM.scheme1 > test.Bdouble
+
+  cat test.Bdouble > chunkstats -chunksize 16 -samples 100 -std
+
+  0.000000E00
+  1.005174E-01
+  6.672950E-02
+  2.336421E-02
+  1.016048E-02
+  1.316822E-03
+  6.030227E-11
+  2.060002E-04
+  1.474010E00
+  4.052566E-07
+  6.030227E-11
+  2.060002E-04
+  1.474010E00
+  1.582579E-11
+  2.010076E-10
+  5.727091E04
+
+The mean and the standard deviation:
+
+  cat test.Bdouble > chunkstats -chunksize 16 -samples 100 -std
+
+The above prints first the 16 means and then the 16 stds.
+
+The chunk with the smallest value of the objective function, which is in position 15
+(counting the first one as zero):
+
+  cat test.Bdouble > chunkstats -chunksize 16 -samples 100 -min 15
+
+  0.000000E00
+  1.000136E00
+  6.607010E-01
+  2.251013E-01
+  1.010955E-01
+  1.310221E-02
+  6.000000E-10
+  2.049676E-03
+  1.466621E01
+  4.025364E-06
+  6.000000E-10
+  2.049676E-03
+  1.466621E01
+  1.524728E-10
+  2.000000E-09
+  -5.698392E05
+
+.SH OPTIONS
+
+.TP
+.B \-chunksize
+Number of values in each chunk
+
+.TP
+.B \-samples
+Number of samples in each chunk
+
+.TP
+.B \-mean
+Output the mean chunk
+
+.TP
+.B \-std
+Output the standard deviation
+
+.TP
+.B \-min\fR <\fIindex\fR>
+Output the chunk with the minimum value of the index-th element.
+
+.TP
+.B \-max\fR <\fIindex\fR>
+Output the chunk with the maximum value of the index-th element.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1)
+
+.SH BUGS

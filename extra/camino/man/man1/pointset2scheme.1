@@ -1,0 +1,230 @@
+.\" $Id$
+
+.TH pointset2scheme 1
+
+.SH NAME
+pointset2scheme \- Creates scheme files from point sets.
+
+.SH SYNOPSIS
+.B pointset2scheme \fR [\fIoptions\fR]
+
+ 
+.SH DESCRIPTION
+
+This program reads gradient directions and produces a scheme file. It will read files in
+the text format found in camino/PointSets/Elec???.txt:
+
+ <N>
+ <point 1 x>
+ <point 1 y>
+ <point 1 z>
+ ...
+ <point N z>
+
+Alternatively, the program can read files in the format:
+
+ <N>
+ <point 1 x> <point 1 y> <point 1 z>
+ ...
+ <point N x> <point N y> <point N z>
+
+with or without the number of points specified at the top of the file. Gradient
+directions will be normalized to unit length if non-zero.
+
+The program will also read FSL gradient directions in the format
+
+ <point 1 x> <point 2 x> ... <point N x>
+ <point 1 x> <point 2 y> ... <point N y>
+ <point 1 x> <point 2 y> ... <point N z>
+
+but it does not read the FSL bvals file. To convert FSL bvecs / bvals file to Camino
+format, see fsl2scheme(1). This program permits you to define new schemes using gradient
+directions from FSL.
+
+Normally, directions will have unit magnitude. If this is not the case, you need to
+determine whether your scanner incorporates the gradient direction magnitude into account
+when calculating the diffusion gradients. See the \fB-usegradmod\fR option.
+
+
+The program produces a scheme file appropriate to the supplied imaging parameters.
+
+.SH SCHEME FORMATS
+
+Additional details concerning imaging schemes may be found under SCHEME FILES in
+camino(1). This section is a quick guide to specifying scheme files using
+\fBpointset2scheme\fR. This program assumes that measurements either apply zero diffusion
+weighting, or a fixed non-zero diffusion weighting. If this is not the case, it may be
+easier to write the scheme by hand.
+
+For all schemes created using this program, "zero" measurements, ie those with zero
+diffusion weighting, should have zero gradient directions.
+
+The simplest scheme format is BVECTOR (formerly called version "2"). This has the form
+
+ VERSION: BVECTOR
+ <x_1> <y_1> <z_1> <b_1>
+ ...
+ <x_N> <y_N> <z_N> <b_N>
+
+where [x_i y_i z_i] is a gradient direction and b_i the corresponding b-value.
+
+To create this scheme file, you need only specify the b-value with the \fB-bvalue\fR
+option. All non-zero gradient directions will have the specified b-value, and zero
+gradients will have a zero b-value.
+
+The STEJSKALTANNER scheme format is a fully-specified Stejskal-Tanner sequence (formerly
+version "1"). Its file format is
+
+ VERSION: STEJSKALTANNER
+ <x_1> <y_1> <z_1> <|G|_1> <DELTA_1> <delta_1> <TE_1>
+ ...
+ <x_N> <y_N> <z_N> <|G|_N> <DELTA_N> <delta_N> <TE_N>
+
+where |G| is the gradient strength, DELTA is the pulse separation, delta is the pulse
+duration, and TE is the echo time for the measurement. To create a scheme file in this
+format, use the \fB-dwparams\fR option and pass (in order) <|G|> <DELTA> <delta> <TE_1>.
+All non-zero measurements will share these parameters. Zero measurements will have zero
+|G|, DELTA, and delta, but the same TE.
+
+The TRSE scheme format is a fully-specified twice-refocused spin-echo sequence (formerly
+version "3"). Its file format is
+
+ VERSION: TRSE
+ <x_1> <y_1> <z_1> 
+ ...
+ <x_N> <y_N> <z_N> <|G|>, <del1>, <t_del1>, <del2>, <t_del2>, <del3>, <t_del4>, <TE>
+
+where t_del is the onset and del the duration of a pulse, and there are four pulses per
+measurement. Details of this scheme may be found in Reese et al, Magn Reson Med, 49(1),
+177-82, 2003. This scheme is created by specifying \fB-dwparams\fR followed by (in order)
+<|G|> <del1> <t_del1> <del2> <t_del2> <del3> <t_del4> <TE>. Zero measurements will have
+everything but TE set to zero.
+
+The scheme version "0" has been deprecated; it is no longer possible to create scheme
+files in that format. Existing scheme files can still be read by Camino programs that
+take the \fB\-schemefile\fR option.
+
+.SH INCLUDING ZERO MEASUREMENTS
+
+Zero measurements may be placed anywhere in the scheme. A zero measurement is defined as
+one where the gradient direction is [0 0 0]. If any direction in the input point set is
+zero, then all diffusion-weighting parameters are also zero for that measurement.
+Additional zero measurements may be prepended onto the scheme with the \fB-addzeromeas\fR
+option.
+
+.SH COMMENTS
+
+Comments in scheme files are any line beginning with #.
+
+.SH UNITS FOR IMAGING PARAMETERS
+
+The units of the measurements in the scheme file determine the units of the output. By
+default, Camino prefers to use SI: meters, seconds, Tesla. Other units are permitted, but
+this will affect the output of Camino programs, and may require you to enter additional
+options. For the purposes of diffusion tensor reconstruction, non-standard units will
+scale the diffusion tensors in the output. Thus if you use a BVECTOR scheme with b-values
+specified in s / mm^2, your diffusivities will be in units of mm^2 / s. Other programs
+may work with non-standard units if additional options are specified. Check the relevant
+man page before using non-SI units with camino programs.
+
+.SH EXAMPLES
+
+Create a scheme file with 30 measurements at b= 1000 s / mm^2 = 1E9 s / m^2, with 3
+unweighted measurements followed by the 30 diffusion-weighted measurements. Gradient
+directions are chosen from the Camino point sets, which are optimised by electrostatic
+energy minimization (Jansons and Alexander, Inverse Problems, 19:1031-1046, 2003). Many
+pre-computed point sets are stored in the camino/PointSets directory.
+
+  pointset2scheme -bvalue 1E9 -addzeromeas 3 < PointSets/Elec030.txt > M3_N30_b1000.scheme
+
+Same thing, only this time we use a file points.txt that already contains the vector [0 0
+0] for the zero measurements. Note that the zero measurements may appear anywhere in the
+file, the b-value for these measurements will be set to zero.
+
+  pointset2scheme -bvalue 1E9 -inputfile points.txt > M3_N30_b1000.scheme
+
+Create a scheme where all measurements are repeated to improve SNR.
+
+  pointset2scheme -bvalue 1E9 -inputfile points.txt -numscans 2 > M3_N30_b1000_S2.scheme
+
+Create the same thing, but acquire the repeat measurements sequentially, rather than in a
+block, so the measurements go [direction 0, direction 0, direction 1, direction
+1,...,direction 32] rather than [direction 0, direction 1,..,direction 32, direction 0,
+direction 1,..,direction 32]
+
+  pointset2scheme -bvalue 1E9 -inputfile points.txt -numscans 2 -interleave > M3_N30_b1000_S2_interleave.scheme
+
+Use a Camino point set, this time for 60 directions, and specify Stejskal-Tanner sequence
+parameters.
+
+  
+  pointset2scheme -version STEJSKALTANNER -dwparams 0.022 0.04 0.025 0.072 -addzeromeas 6 -inputfile PointSets/Elec060.txt > M6_N60_ST.scheme
+
+.SH OPTIONS
+
+.TP
+.B \-version\fR <\fIVERSION\fR>
+Version of scheme file to produce. The default is BVECTOR. Options are BVECTOR,
+STEJSKALTANNER, TRSE.
+
+.TP
+.B \-bvalue\fR <\fIb\fR>
+B-value for all measurements. Applies only to BVECTOR schemes. This is an alias for
+\fB-dwparams\fR \fIb\fR.
+
+.TP
+.B \-dwparams\fR <\fIparam1 param2 ... paramN\fR>
+The diffusion-weighting parameters for each non-zero measurement.  The required
+parameters for each scheme version are
+
+ Version		Parameters
+
+ BVECTOR                b
+ STEJSKALTANNER         |g| DELTA delta TE
+ TRSE                   |g| del1 t_del1 del2 t_del2 del3 t_del4 TE
+
+.TP
+.B \-addzeromeas\fR <\fInumber\fR>
+Prepend \fInumber\fR of zero measurements to the scheme. Zero measurements are added
+before	any repeats are encoded, so these measurements are also repeated.
+
+.TP
+.B \-numscans\fR <\fInumber\fR>
+Number of scans, which is the total number of times that the input point set (including
+any prepended zero measurements) should appear in the scheme file. The default is 1.
+
+.TP
+.B \-interleave\fR
+Interleaves the scans. Useful only if the number of scans is greater than 1. If the input
+point set contains gradient directions [0, 1, 2,...,N], then \fB-numscans\fR \fI2\fR
+produces output in order [0, 1,...,N, 0, 1,...,N]. \fB-numscans\fR \fI2\fR
+\fB-interleave\fR gives [0, 0, 1, 1,...,N, N].
+
+.TP
+.B \-flipx\fR 
+Negate the x component of all the vectors in the input.
+
+.TP
+.B \-flipy\fR 
+Negate the y component of all the vectors in the input.
+
+.TP
+.B \-flipz\fR 
+Negate the z component of all the vectors in the input.
+
+.TP
+.B \-usegradmod\fR 
+This uses the gradient direction magnitude to scale b. Some scanners will factor  the
+gradient magnitude into the b-value. If the gradient directions have magnitude |g| =
+sqrt(g_x^2 + g_y^2 + g_z^2), and the nominal b-value is beta, then the actual b-value is
+beta * |g|^2. If this option is used, the gradient directions will still be normalized to
+unity in the output, and the b-value will be scaled appropriately. It is only used for
+BVECTOR schemes.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+camino(1), fsl2scheme(1)
+
+.SH BUGS

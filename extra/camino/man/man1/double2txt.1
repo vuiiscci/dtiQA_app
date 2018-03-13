@@ -1,0 +1,66 @@
+.\" $Id: double2txt.1,v 1.3 2006/04/21 12:08:11 ucacmgh Exp $
+
+.TH double2txt 1
+
+.SH NAME
+double2txt \- Converts big-endian binary double data to text.
+
+.SH SYNOPSIS
+.B double2txt \fR [\fIdecimal_places\fR] [\fB-linenum\fR] [\fB-components\fR <\fIN\fR>] 
+
+.SH DESCRIPTION
+Reads big-endian binary double precision floating point data from the standard input and
+outputs each double as text in scientific notation with six decimal places by default,
+although the number of decimal places can be specified, optionally, as the first command
+line argument.
+
+.SH EXAMPLES
+
+Output as text the doubles stored as binary data in test.Bdouble:
+
+cat test.Bdouble | double2txt
+
+The output has the form:
+
+ 5.500000E01
+ -1.003820E-01
+ -1.230454E01
+ -1.447965E01
+ 4.998373E00
+  :
+
+Specify 8 decimal places rather than the default 6:
+
+cat test.Bdouble | double2txt 8
+
+The output has the form:
+
+ 5.50000000E01
+ -1.00381965E-01
+ -1.23045428E01
+ -1.44796451E01
+ 4.99837343E00
+ :
+
+.SH OPTIONS
+
+The first option is a single integer for the number of decimal places in the output. It
+is required if other options are specified.
+
+.TP
+.B \-linenum
+Print line numbers in output.
+
+.TP 
+.B \-components \fR <\fIN\fR>
+Assume output is voxel data with \fIN\fR components. Output will be annotated with voxel
+number and component number.
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+float2txt(1), byte2txt(1), char2txt(1), short2txt(1), int2txt(1), long2txt(1),
+shredder(1).
+
+.SH BUGS

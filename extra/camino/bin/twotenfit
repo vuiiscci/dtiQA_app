@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Wrapper for modelfit that provides a simple interface for simply
+# fitting a pair of diffusion tensors to diffusion MRI data in a file.
+# 
+# $Id: twotenfit,v 1.4 2005/08/04 13:50:47 ucacpco Exp $
+
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+if [ $# -lt 2 ]; then
+    echo "twotenfit <data file> <scheme file> [-cylsym]"
+    exit
+fi
+
+DATAFILE=$1
+SCHEMEFILE=$2
+
+INVERSION=31
+if [ $# -eq 3 ] && [ $3 == -cylsym ]; then
+    INVERSION=11
+fi
+
+DATAOPT="-inputfile $DATAFILE"
+if [ $DATAFILE == - ]; then
+    DATAOPT=
+fi
+
+exec ${SCRIPTDIR}/modelfit $DATAOPT -schemefile $SCHEMEFILE -inversion $INVERSION
+echo two ten fit     EXITCODE=$?
+done.
+
+

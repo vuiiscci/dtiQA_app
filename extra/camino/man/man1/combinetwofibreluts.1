@@ -1,0 +1,46 @@
+.\" $Id: combinetwofibreluts.1,v 1.4 2006/01/04 14:54:48 ucacpco Exp $
+
+.TH combinetwofibreluts 1
+
+.SH NAME
+combinetwofibreluts \- Combine two fibre LUTs with a range of crossing angles between the
+test functions.
+
+.SH SYNOPSIS
+.B combinetwofibreluts 
+\-luts [\fIfile1\fR \fIfile2\fR...] \-anglerange [\fImin\fR \fImax\fR] 
+
+.SH DESCRIPTION
+
+Combines two fibre LUTs into a single file. The LUTs must be of the same dimension, with
+evenly spaced crossing angles. The LUTs must be sorted in ascending order by the crossing
+angle.
+
+ 
+.SH EXAMPLES
+
+Combine three LUTs (twoWatson_schemeA_snr16_inv2_{50,70,90} at crossing angles of 50, 70,
+and 90 degrees.
+
+combinetwofibreluts -luts twoWatson_schemeA_snr16_inv2_50 twoWatson_schemeA_snr16_inv2_70
+twoWatson_schemeA_snr16_inv2_90
+
+ -anglerange 50 90 > twoWatson_schemeA_snr16_inv2
+
+.SH OPTIONS
+
+.TP
+.B \-luts\fR <\fIfiles\fR>
+Filenames of the lookup tables at each crossing angle.
+
+.TP
+.B \-anglerange\fR <\fImin max\fR>
+Minimum and maximum crossing angles of the LUTs, in degrees. 
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+dtlutgen(1)
+
+.SH BUGS

@@ -1,0 +1,866 @@
+.\" $Id: track.1,v 1.27 2006/07/26 21:28:18 ucacpco Exp $
+
+.TH track 1
+
+.SH NAME
+track \- Performs streamline tractography.
+
+.SH SYNOPSIS
+.B track 
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+
+Does streamline tractography using either a determinstic or probabilistic methods. This 
+program generates streamlines from a variety of possible input, including diffusion
+tensors, spherical PDFs, and raw DWI data. The data that is used to derive the tracking
+is referred to here as the input data, and it is passed by using the \fB-inputfile\fR and
+\fB-inputmodel\fR options (see \fBOPTIONS\fR).
+
+The general pipeline for tracking is as follows:
+
+  1. Generate data for input to \fBtrack\fR. Required preprocessing for tracking with 
+     different data types is described in detail in the following sections. 
+
+  2. Define the seed regions from which tracking is initiated (see SEEDING TRACTOGRAPHY).
+
+  3. Run \fBtrack\fR with the data, your choice of tracking algorithm (see TRACKING ALGORITHMS) 
+     and interpolation algorithm (see INTERPOLATION ALGORITHMS), plus other options as needed.
+
+  4. Do post-processing of the tracts with programs such as procstreamlines(1), vtkstreamline(1), 
+     or conmat(1).
+ 
+
+.SH DEFINITION OF PHYSICAL SPACE AND IMAGE DIMENSIONS
+
+If the input image has a definition of physical space (eg, it is a NIfTI image), then that
+will be used as the physical space for tractography. 
+
+Usually, the seed file will be a NIFTI image in the same space as the input image. Sometimes the seed
+image will not have the same dimensions as the input data. The seed file must be aligned to the input
+space, but the images need not be of the same resolution. This allows you to upsample or downsample the
+seed image and thereby control the density of seed points.
+
+To avoid confusion when translating to and from physical space, we recommend using NIfTI 
+format for all images.
+
+Images other than the seed file, eg brain masks and anisotropy images, must be in the same voxel and physical
+space as the input data.
+
+
+
+.SH SEEDING TRACTOGRAPHY
+
+The seed file is usually a NIfTI image, passed with \fB-seedfile\fR. The image need not be 
+of the same resolution as the diffusion data, but their physical coordinates must be 
+aligned. This flexibility allows tracking to be seeded at a higher or lower density than 
+the input data. For example, we might have diffusion tensors at 2mm resolution, but decide 
+to seed at 1mm intervals over some ROI.
+
+The seed file contains the regions of interest for tracking, and should be zero for background
+with positive integer labels for the ROIs. Streamlines are seeded at the centre of all voxels 
+with an intensity greater than zero. Voxels that share the same intensity are considered part 
+of the same ROI, they do not have to be contiguous.
+
+Alternatively, a list of points may be passed with the \fB-seedlist\fR option. These should be
+points in physical space of the input data, written in the format
+
+  <x> <y> <z>
+  <x> <y> <z>
+  <x> <y> <z>
+     . . .
+  <x> <y> <z>
+
+They are all considered to be part of a single ROI. The seeds should be in the physical
+space of the input data.
+
+
+.SH OUTPUT
+
+The output is streamlines in the physical space of the input data.
+
+If \fB-outputroot\fR is specified, streamline output is contained in a single file for
+each ROI. Otherwise output goes to stdout by default but can be sent to a file with the
+\fB-outputfile\fR option.
+
+The seed points in a seed image are processed in the following order 
+
+  for (all rois r in seedImage ) {  
+    for (all z) {  
+      for (all y) {  
+        for (all x) {
+
+          s = seedImage(x,y,z);
+
+          if (s == r) {	
+            for (all principal directions in voxel) {
+              for (all iterations i) {  
+                  calculate streamline for seed (x,y,z)  
+                  write streamline to output
+              }  
+            }
+         }  
+
+        }
+      }
+    }
+  }
+
+If a list of points are supplied with the \fB-seedlist\fR option, they are processed in
+the order that they are written.
+
+The raw streamline format is 32 bit float. For each streamline, the program outputs the
+number of points N in the streamline, the index of the seed point, followed by the
+(x,y,z) coordinates (in mm) of each point: [<N>, <seed point index>, <x_1>, <y_1>,
+<z_1>,...,<x_numPoints>, <y_N>, <z_N>, <N>,...,<z_N>], where the <seed point index> is
+the point on the streamline where tracking began.
+
+The program \fBprocstreamlines\fR contains tools for post-processing of streamlines.
+
+The \fBvtkstreamlines\fR program converts Camino streamlines to VTK polylines.
+
+
+
+.SH TRACKING IN DIFFUSION TENSOR DATA
+
+The steps are:
+ 
+  1. Fit the tensors (eg with \fBdtfit\fR).  
+  2. Run \fBtrack\fR with input model \fIdt\fR or \fImultitensor\fR as appropriate.
+
+
+
+.SH BAYESIAN PROBABILISTIC TRACKING
+
+The main probabilistic algorithm for DWI data is an implementation of the Bayesian method 
+presented by Friman et al [IEEE-TMI 25:965-978, 2006]. The theory is decribed briefly below.
+
+Run \fBtrack\fR with input model \fIbayesdirac\fR or \fIbayesdirac_dt\fR.
+
+In each voxel, we compute the likelihood of the fibre orientation being the axis X, 
+given the data and the model of the data. We wish to sample from 
+
+  P(X | data) = P(data | X) P(X) / P(data)
+
+in each voxel. We first fit a model to the data, which can either be a ball-and-stick partial 
+volume model, or a simplified diffusion tensor model (the tensor is required to have eigenvalues
+L1 >= L2 == L3). This yields m_i, the predicted measurement i given a principal direction X. 
+The observed data y_i is a noisy estimate of m_i. The noise is modelled on the log data as 
+
+  ln(y_i) = ln(m_i) + epsilon
+
+  ln(y_i) = ln(m_i) + epsilon,
+
+where epsilon is Gaussian distributed as N(0, sigma^2 / m_i^2), where sigma^2 is the
+variance of the noise in the complex MR data. Therefore,
+
+  P(data | X) = P(y_1 | m_1)P(y_2 | m_2)...P(y_N | m_N)
+
+where there are N measurements. The prior distribution for all parameters \fBexcept\fR X
+is a dirac delta function, so P(data) is the integral of P(data | X) over the sphere. In
+the case of the diffusion tensor, for example, the priors of S(0) and the tensor
+eigenvalues L1, and L2 = L3 are fixed around the maximum-likelihood estimate (MLE). The
+function P(data | X) is then evaluated by setting the tensor principal direction to X and
+computing the likelihood of the observed data.
+
+The prior on X, P(X), may be set to favor low tract curvature. With the
+\fB-curvepriork\fR option, the user may set a Watson concentration parameter k. Given a
+previous tract orientation T, P(X) = W(X, T, k), where k >= 0. The default is k = 0,
+which is a uniform distribution . Higher values of k increase the sharpness of P(X) around 
+its peak axis T. Suggested values of k are in the range of 0 to 5. You may also use 
+\fB-curvepriorg\fR to implement Friman's curvature prior. Note that a curvature prior does 
+not directly impose a curvature threshold, which may be imposed separately.
+
+An external prior may also be added, in the form of a PICo PDF O(X) defined for each
+voxel in the image. The full prior is then W(X, T, k)O(X). Pass a PICo image with \fB-
+extpriorfile\fR. See picopdfs(1) for a definition of the file format.
+
+The Bayesian tracking algorithm uses a fixed set of vectors from which we choose the tracking
+direction, X. By default, the basis is a set of 1922 vectors evenly distributed on the unit 
+hemisphere. Speed can be increased by passing the option "-pointset 0" in order to use a reduced 
+point set of 1082 directions.
+
+
+.SH WILD BOOTSTRAP TRACKING
+
+
+Wild bootstrapping requires a single DWI data set. A diffusion tensor model is fit 
+to the raw data, and the residuals are resampled randomly. See Whitcher et al, 
+[Human Brain Mapping 29(3):346-62, 2008] for more information.
+
+  track -inputfile dwi.nii.gz -inputmodel wildbs_dt -schemefile A.scheme -bgmask \\
+  A_BrainMask.nii.gz -iterations 1000 -seedfile ROI.nii.gz > A_wildbs.Bfloat
+
+
+.SH PROBABILISTIC TRACKING WITH PARAMETRIC MODELS (PICO)
+
+PICo refers to a family of models where we fit a parametric model of the uncertainty 
+in each voxel. These models can be derived from the a variety of sources including the 
+diffusion tensor (as in Parker and Alexander [IPMI 2003 p 684-695]) and PAS-MRI, (see 
+Parker and Alexander, [Trans Royal Society B. 360:893-902, 2005]).
+
+For diffusion tensor data, Bayesian or wild bootstrap methods are preferable because they
+make use of all the DWI data, whereas PICo only uses the tensor eigenvalues to estimate
+uncertainty. 
+
+The pipeline for PAS-MRI is:
+
+  1. Fit the PAS-MRI model, see sfpeaks(1). 
+  2. Define a mapping of PAS parameters to spherical pdfs, see sflutgen(1).
+  2. Map the data to PDFs in each voxel in the image, see picopdfs(1).  
+  3. Run track with input model \fIpico\fR.
+
+
+
+.SH REPETITION BOOTSTRAP TRACKING
+
+Repetition bootstrap tracking requires multiple repeats of raw DWI data and a reconstruction
+algorithm. The principal direction or directions in each voxel are determined independently 
+for each bootstrap sample of the data.
+
+Currently, diffusion tensor is the only model supported. Please see datasynth(1) for 
+more information on the bootstrap technique.
+
+One and two-tensor models may be fitted to the bootstrap data. The reconstruction parameters
+[see modelfit(1) should be passed to \fBtrack\fR along with the other parameters. For example,
+given 4 repeats of a scan SubjectA_[1,2,3,4].Bfloat, (in voxel order), we can track using
+repetition bootstrapping and DTI:
+
+  track -inputmodel repbs_dt -bsdatafiles SubjectA_1.Bfloat SubjectA_2.Bfloat \\
+  SubjectA_3.Bfloat SubjectA_4.Bfloat -schemefile A.scheme -inversion 1 -bgmask \\
+  A_BrainMask.nii.gz -iterations 1000 -seedfile ROI.nii.gz -bsmodel dt > A_bs.Bfloat 
+
+To use a two-tensor model, we must pass the voxel classification from \fBvoxelclassify\fR.
+
+  track -inputmodel repbs_multitensor -bsdatafiles SubjectA_1.Bfloat SubjectA_2.Bfloat \\ 
+  SubjectA_3.Bfloat SubjectA_4.Bfloat -schemefile A.scheme -model pospos ldt -voxclassmap \\ 
+  A_vc.Bint -iterations 1000 -seedfile ROI.nii.gz -bsmodel multitensor > A_bs.Bfloat 
+
+The voxel classifications are fixed; they are not re-determined dynamically.
+
+Note that you may pass either \fB-voxclassmap\fR or \fB-bgmask\fR, but not both. If you
+are using a voxel classification map, the brain / background mask should be passed to \
+fBvoxelclassify\fR. You may always restrict tracking to any volume of the brain by using
+the \fB-anisfile\fR and \fB-anisthresh\fR options.
+
+
+
+.SH TRACKING WITH BEDPOSTX OUTPUT
+
+Data from FSL's bedpostx can be imported into track for either probabilistic or deterministic
+tracking. Use the \fB-bedpostxdir\fR option to set the input directory containing the output
+of bedpostx.
+
+For deterministic tracking, use "-inputmodel bedpostx_dyad". This will use the vector
+images dyads1.nii.gz, ... , dyadsN.nii.gz, where there are a maximum of N compartments in each
+voxel. 
+
+For probabilistic tracking, use "-inputmodel bedpostx". This will use the files
+merged_th1samples.nii.gz, merged_ph1samples.nii.gz, ... , merged_thNsamples.nii.gz,
+merged_phNsamples.nii.gz. These images contain M samples of theta and phi, the polar
+coordinates describing the "stick" for each compartment. At each iteration, a random number X
+between 1 and M is drawn and the Xth samples of theta and phi become the principal directions
+in the voxel.
+
+Both deterministic and probabilistic tracking make use of the images mean_f1samples.nii.gz,
+... , mean_fNsamples.nii.gz. This is the mean compartment size for the compartments 1 through
+N, normalized such that the sum of all compartments is 1. Compartments where the mean_f is
+less than a threshold are discarded and not used for tracking. The default value is 0.01. This
+can be changed with the \fB-bedpostxminf\fR option.
+
+
+
+.SH LIST OF INPUT MODELS
+
+This section deals with the various types input to \fBtrack\fR, which are specified with
+the \fB-inputmodel\fR option. The input model controls the format of the input data, and 
+what kind of image will be constructed from it. 
+
+The default data type is "float" for input models that require DWI data, "double" for 
+everything else.
+
+
+The available input models are:
+
+  \fIbayesdirac\fR - raw DWI data for Bayesian tractography, using a ball and stick model.
+  \fIbayesdirac_dt\fR - raw DWI data for Bayesian tractography, using a DT model.
+
+This inputmodel is for probabilistic tracking using the Bayesian method. The input file in 
+both cases is raw DWI data. They differ in the type of model they use for the likelihood function. 
+See BAYESIAN PROBABILISTIC TRACKING.
+
+  \fIbedpostx\fR - Monte Carlo data produced by FSL's bedpostx program. For probabilistic tracking.
+  \fIbedpostx_dyad\fR - Dyads produced by FSL's bedpostx program. For deterministic tracking.
+
+When bedpostx data is used, specify the directory containing the data with \fB-bedpostxdir\fR. The
+number of PDs per voxel is determined automatically from the files in this directory. 
+
+  \fIdt\fR - diffusion tensor data, as produced by \fBmodeltfit\fR.
+
+The \fB-anisthresh\fR option may be specified without supplying a separate anisotropy map; the 
+fractional anisotropy of the DT is used.
+
+
+  \fIdwi_dt\fR - DWI data, a DT model will be fit on the fly.
+
+This can be used to track directly in DWI data without fitting the DT first. It's less efficient 
+than using a precomputed DT, because the DT has to be reconstructed for each tracking process. 
+However, it does allow for interpolation of the DWI data (see INTERPOLATION below) before the DT 
+is reconstructed.
+
+  \fImultitensor\fR - diffusion tensor data, as produced by \fBmultitenfit\fR.
+
+The maximum number of tensors in each voxel is specified by the \fB-maxcomponents\fR option. 
+The number of tensors in individual voxels is encoded in the data, so no voxel classification map 
+is required. As with single DT data, a fractional anisotropy mask can be derived from the data.
+
+  \fIsfpeak\fR - principal directions, as produced by \fBsfpeaks\fR.
+
+The maximum number of PDs in each voxel is specified by the \fB-numpds\fR option. The number of PDs 
+in individual voxels is encoded in the data.
+
+  \fIpico\fR - PICo PDFs, as produced by \fBpicopdfs\fR.
+
+The maximum number of PDs in each voxel is specified by the \fB-numpds\fR option. The number of PDs 
+in individual voxels is encoded in the data.
+
+  \fIrepbs_dt\fR - raw DWI data for bootstrapping, bootstrap samples are used to fit the DT.
+
+  \fIrepbs_multitensor\fR - raw DWI data for bootstrapping, bootstrap samples are used to fit a 
+  multi-tensor model or the DT, according to the voxel classification.
+
+Repetition bootstrap data is passed to the program with \fB-bsdatafiles\fR. 
+
+  \fIwildbs_dt\fR - A single raw DWI image, the DT will be computed in each voxel and the data will be 
+  resampled using the wild bootstrap algorithm.
+
+Wild bootstrap data is passed on standard input or with \fB-inputfile\fR.
+
+
+
+.SH TRACKING ALGORITHMS
+
+The tracking algorithm controls how we generate streamlines from the data, and is set with the 
+\fB-tracker\fR option. The choices are
+
+  \fIfact\fR
+
+Similar to the FACT algorithm proposed by Mori et al [Annals Neurology 45:265-269, 1999], 
+this method follows the local fibre orientation in each voxel. No interpolation is used.
+
+
+  \fIeuler\fR
+
+Tracking proceeds using a fixed step size along the local fibre orientation. With nearest-neighbour 
+interpolation, this method may be very similar to FACT, except that the step size is fixed, whereas 
+FACT steps extend to the boundary of the next voxel (distance variable depending on the entry and 
+exit points to the voxel).
+
+  \fIrk4\fR
+
+Fourth-order Runge-Kutta method. The step size is fixed, however the eventual direction of the step is 
+determined by taking and averaging a series of partial steps. 
+
+For more explanation of the tracking algorithms, see Basser et al [Magnetic Resonance in Medicine 
+44:625–632, 2000].
+
+
+The tensor deflection (tend) algorithm may be used for deterministic tracking in tensor
+images (Lazar et al, Human Brain Mapping 18:306-321, 2003). This algorithm is similar to
+FACT except that the tracking direction in each voxel is deflected by the local diffusion
+tensor.
+
+
+.SH INTERPOLATION ALGORITHMS
+
+The interpolation algorithm determines how we define the fiber orientation(s) at a given 
+continuous point within the input image. Interpolators are specified with \fB-interpolator\fB and
+are only used when the tracking algorithm is not FACT. The choices are
+
+  \fInn\fR
+
+Nearest-neighbour interpolation, just uses the local voxel data directly.
+
+  \fIprob_nn\fR
+
+Probabilistic nearest-neighbor interpolation, similar to the method proposed by Behrens et al 
+[Magnetic Resonance in Medicine, 50:1077-1088, 2003]. The data is not interpolated, but at each 
+point we randomly choose one of the 8 voxels surrounding a point. The probability of choosing a 
+particular voxel is based on how close the point is to the centre of that voxel.
+
+  \fIlinear\fR
+
+Linear interpolation of the vector field containing the principal directions at each point. 
+
+  \fItend\fR
+
+Uses TEND, similar to the method proposed by Lazar et al [Human Brain Mapping 18:306-321, 2003]. 
+The tracking step is a combination of the local tensor orientation, the previous direction, and 
+the previous direction deflected by the local tensor (the TEND term). Works on tensor data only.
+
+The user can control how the weighted average of the local tensor principal eigenvector e_1, 
+the previous direction v_{in}, and the tend term D * v_{in} are constructed. Two parameters f 
+and g control the weighting, e_1 is weighted by f, v_{in } is weighted by (1-f)(1-g) and tend 
+is weighted by (1-f)g. By default, f = 0 and g = 1, so the resultant direction is D * v_{in}.
+
+  \fItend_prob_nn\fR
+
+Like TEND, except the diffusion tensor is selected randomly from the neighbouring voxels, as the 
+\fIprob_nn\fR option does for vectors. Works on tensor data only.
+
+  \fIdwi_linear\fR
+
+Interpolate the DWI data directly. Works on DWI data only. 
+
+
+.SH RESTRICTING AND STOPPING TRACKING
+
+Mask images can be used to restrict tracking to particular areas. Tracts that extend outside 
+the masked region are terminated. Set the mask with the \fB-anisfile\fR and \fB-anisthresh\fR 
+options. Often the mask of choice is based on thresholding the anisotropy of the diffusion 
+tensor data (hence the names) but you may use any image that is in the same space as the 
+diffusion image. For example, a binary mask may be used with a threshold of 1.0.
+
+Tracking may also be terminated when the local streamline curvature exceeds some threshold. Two 
+options control this behaviour: \fB-curvethresh\fR specifies the maximum curvature (in degrees) 
+over a length (in mm) defined by \fB-curveinterval\fR. So "-curvethresh 45 -curveinterval 5" will 
+check at 5mm intervals and terminate tracking if the curvature exceeds 45 degrees.
+
+Tracking stops when the lines reach a maximum length; by default this is 1000mm.
+
+Tracts may also be modified or discarded in post-processing, see procstreamlines(1).
+
+
+
+.SH PARALLEL TRACKING
+
+The \fB-regionindex\fR option allows ROIs to be processed indepedently.	 Therefore, if
+there are four ROIs in the seed file rois.nii.gz, labeled 1 through 4,
+
+  for roi in \`seq 1 4\`; do
+    track -inputfile dt.Bdouble -inputmodel dt -seedfile rois.nii.gz -outputroot A_ \\ 
+    -regionindex $roi
+  done
+
+The output files can be concatenated in order for post-processing with \fBprocstreamlines\fR.
+
+
+
+.SH EXAMPLES
+
+Do FACT tracking within a region of interest defined in an image subAROI.nii.gz. The ROI is 
+defined by a collection of voxels with the intensity value 1.
+
+  cat SubjectA.oneDT.Bdouble | track -inputmodel dt -seedfile subAROI.nii.gz -anisthresh 0.1 \\ 
+  -outputroot A_oneDT_ -curvethresh 60 -anisthresh 0.1
+
+This outputs A_oneDT_1.Bfloat, containing all streamlines from the ROI. If there were a total 
+of R separate ROIs in the seed file, there would be another output file for each ROI.
+
+Do the same thing, but with Euler tracking
+
+  cat SubjectA.oneDT.Bdouble | track -inputmodel dt -seedfile subAROI.nii.gz -anisthresh 0.1 \\ 
+  -outputroot A_oneDT_ -curvethresh 60 -anisthresh 0.1 -tracker euler -stepsize 0.5 \\ 
+  -interpolator linear
+
+
+Use Bayesian tracking on some DWI data
+
+  track -inputmodel bayesdirac -inputfile dwi.nii.gz -seedfile ROI.nii.gz -schemefile A.scheme \\ 
+  -anisfile brainmask.nii.gz -anisthresh 1.0 -iterations 1000 \\
+  -outputfile bayesTracts.Bfloat
+  
+
+
+
+.SH OPTIONS
+
+
+.SH DATA OPTIONS
+
+.TP
+.B \-inputmodel\fR <\fImodel\fR>
+
+  \fIbayesdirac\fR - raw DWI data for Bayesian tractography, using a ball and stick model.
+
+  \fIbayesdirac_dt\fR - raw DWI data for Bayesian tractography, using a DT model.
+
+  \fIbedpostx\fR - Monte Carlo data from FSL's bedpostx program.
+
+  \fIbedpostx_dyad\fR - Dyads from FSL's bedpostx program.
+
+  \fIdt\fR - diffusion tensor data, as produced by \fBmodeltfit\fR.
+
+  \fIdwi_dt\fR - DWI data, a DT model will be fit on the fly.
+
+  \fIdwi_multitensor\fR - DWI data, a multi-tensor model will be fit on the fly.
+
+  \fImultitensor\fR - diffusion tensor data, as produced by \fBmultitenfit\fR.
+
+  \fIsfpeak\fR - as produced by \fBsfpeaks\fR.
+
+  \fIpico\fR - PICo PDFs, as produced by \fBpicopdfs\fR.
+
+  \fIrepbs_dt\fR - raw DWI data for bootstrapping, bootstrap samples are used to fit the DT.
+
+  \fIrepbs_multitensor\fR - raw DWI data for bootstrapping, bootstrap samples are used to fit a 
+  multi-tensor model or the DT, according to the voxel classification.
+
+  \fIwildbs_dt\fR - A single raw DWI image, the DT will be computed in each voxel and the data will be 
+  resampled using the wild bootstrap algorithm.
+
+
+See LIST OF INPUT MODELS for more detail.
+
+.TP
+.B \-inputdatatype\fR <\fItype\fR>
+
+If the input model requires raw data, the default is "float", otherwise it is "double". 
+Most users will not need to set this, since Camino programs produce these data types 
+by default.
+
+ 
+.TP
+.B \-numpds \fR <\fInumber\fR>
+
+The maximum number of PDs in a voxel for input models \fIsfpeak\fR and \fIpico\fR. The
+default is 3 for input model \fIsfpeak\fR and 1 for input model \fIpico\fR. This option
+determines the size of the voxels in the input file and does not affect tracking.
+
+For tensor data, use the \fB-maxcomponents\fR option.
+
+
+.TP
+.B \-maxcomponents \fR <\fInumber\fR>
+
+The maximum number of tensor components in a voxel. This determines the size of the input
+file and does not say anything about the voxel classification. The default is 2 if the
+input model is \fImultitensor\fR and 1 if the input model is \fIdt\fR.
+
+.TP
+.B \-header\fR <\fIimage\fR>
+Header of an image describing the space of the input data. This overrides the image
+space specified by the seed file, and is only needed when the seed file is in a different
+voxel space than the input image.
+
+.TP
+.B \-datadims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The x, y, and z dimension of the data, in voxels. This overrides the image space
+specified by the seed file. If this is specified, an identity transform to physical space
+is assumed, with zero origin. It's better to use \fB-header\fR when possible.
+
+.TP
+.B \-voxeldims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The x, y, and z dimension of each voxel, in millimetres. Used with \fB-datadims\fR. It's better 
+to use \fB-header\fR when possible.
+
+
+
+.TP
+.B \-bgmask\fR <\Ifile\fR> |  \-brainmask\fR <\Ifile\fR>
+
+Provides the name of a file containing a brain / background mask. This image must be of the 
+same dimensions as the diffusion data. This is only used with certain data types (eg DWI data) 
+that do not already contain brain / background masking information. If you want to override the 
+brain / background information in, say, a DT file, pass the brain mask as an anisotropy file with 
+a threshold of 1.0.
+
+.TP
+.B \-voxclassmap\fR <\Ifile\fR>
+
+Voxel classification image, see voxelclassify(1). Only used for input models that fit tensor data. 
+This overrides any brain mask, background voxels should be classified "-1" in this image.
+
+
+.TP
+
+.B \-model <\fImodels\fR>
+
+Tensor reconstruction algorithm for repetition bootstrap or DWI images. See modelfit(1). The default 
+is \fIldt\fR (linear reconstruction, single tensor).
+
+.TP
+
+.B \-schemefile\fR <\fIfile\fR>
+
+Specifies the scheme file for the diffusion MRI data, see camino(1). Required for input models using 
+raw DWI data.
+
+
+
+.SH TRACKING OPTIONS
+
+.TP
+
+.B \-tracker\fR <\fItracker\fR>
+
+One of
+
+  \fIfact\fR
+  \fIeuler\fR
+  \fIrk4\fR 
+
+The default is \fIfact\fR. See TRACKING ALGORITHMS for more detail. 
+
+
+.TP
+
+.B \-iterations
+
+Number of streamlines to generate at each seed point. 
+
+The default is 1. For probabilistic tracking, more iterations will improve statistics
+but will take longer to run. For a small seed region, 1000-5000 iterations per voxel
+may be feasible. Global tracking (seeding in all brain voxels) will finish in a reasonable time
+with around 25 iterations per voxel. 
+
+
+.TP
+
+.B \-curvethresh\fR <\fIvalue\fR>
+
+Curvature threshold for tracking, expressed as the maximum angle (in degrees) between
+between two streamline orientations calculated over a user-specified interval. If the 
+angle is greater than this, then the streamline terminates. Set to 180 to disable the 
+curvature threshold.
+
+The default is 90 degrees.
+
+.TP
+.B \-ipthresh\fR <\fIvalue\fR>
+
+Alternate way of specifying the curvature threshold for tracking, expressed as the minimum 
+dot product between two streamline orientations. If the dot product between the previous 
+and current directions is less than this threshold, then the streamline terminates. Set to 
+-1 to disable the curvature threshold.
+
+
+.TP
+.B \-curveinterval\fR <\fIvalue\fR>
+
+Interval over which the curvature threshold should be evaluated, in mm. 
+
+The default is 5mm. When using the default curvature threshold of 90 degrees, this means 
+that streamlines will terminate if they curve by more than 90 degrees over a path length 
+of 5mm.
+
+
+.TP
+.B \-stepsize\fR <\fIvalue\fR>
+
+Step size for Euler and RK4 tracking. The default is 1mm.
+
+.TP
+.B \-interpolator\fR <\fIinterp\fR>
+
+  \fInn\fR - Nearest-neighbour interpolation
+
+  \fIprob_nn\fR - Probabilistic nearest-neighbour interpolation
+
+  \fIlinear\f - Eight-neighbour linear interpolation of the principal directions
+
+  \fItend\fR - Tensor deflection
+
+  \fItend_prob_nn\fR  - Tensor deflection with probabilistic nearest-neighbour choice of tensor
+
+  \fIdwi_linear\fR - Linearly interpolate the DWI data
+
+See INTERPOLATION ALGORITHMS for more detail.
+
+The default is \fInn\fR.
+
+.TP
+.B \-tendf <\fIf\fR | \fIf.nii.gz\fR>
+
+The tend parameter f controls the weighting given to the FACT term, which is the
+unmodified local fiber orientation in each voxel. The default is 0.0. The maximum value
+is 1.0, which is identical to FACT tracking. If f is a constant, it is applied to all
+voxels, if it is an image, the local value of f is used in each voxel. 
+
+The default is 0.0.
+
+
+.TP
+.B \-tendg <\fIg\fR>
+
+The relative weighting of the tend term vs the previous direction. This must be a constant 
+between 0 (ignore tend) and 1.0 (ignore previous direction).
+
+The default is 1.0.
+
+
+.TP
+.B \-anisthresh\fR <\fIvalue\fR>
+
+Terminate fibres that enter a voxel with lower anisotropy than the threshold. The fractional 
+anisotropy can be calculated from the data if it is diffusion tensors, otherwise an image is 
+required.
+
+The default is 0.0.
+
+
+.TP
+.B \-anisfile\fR <\fIfile\fR>
+
+File containing the anisotropy map. This is required to apply an anisotropy threshold
+with non tensor data. If the map is supplied it is always used, even in tensor data. This
+allows an alternative scalar image to be used in place of fractional anisotropy.
+
+
+.TP
+.B \-randomseed\fR <\fIseed\fR>
+
+An integer seed for the random number generator. The default seed is the current system
+time in milliseconds since midnight, January 1, 1970 UTC. Repeated runs of track using
+probabilistic methods will use the same sequence of random numbers on all platforms if a
+constant seed is used.
+
+
+.SH SEEDS
+
+.TP
+.B \-seedfile\fR <\fIfile.nii.gz\fR>
+
+Image containing seed points. Streamlines will be seeded at the centre of all voxels with 
+intensity greater than 0. The output is numbered according to the intensity of the seed.
+
+.TP
+.B \-seedlist\fR <\fIfile\fR>
+
+Reads a list of seed points from the text file \fIfile\fR. The points should be defined
+in physical space of the input data. Each component of the point should be on one line,
+separated by white space, eg 
+
+  1.0 2.0 3.0 
+  4.0 5.0 6.0 
+  ...
+
+The entire list of points is treated as a single ROI.
+
+
+
+.SH PICO OPTIONS
+
+.TP
+.B \-pdf\fR <\fIbingham\fR | \fIwatson\fR | \fIacg\fR>
+
+Specifies the model for PICo parameters. The default is \fIbingham\fR.
+
+
+.SH BAYES-DIRAC OPTIONS
+
+.TP
+.B \-pointset\fR <\fIindex\fR>
+
+Index to the point set to use for Bayesian likelihood calculation. The index specifies a
+set of evenly distributed points on the unit sphere, where each point \fBx\fR defines two
+possible step directions (\fBx\fR or -\fBx\fR) for the streamline path. A larger number
+indexes a larger point set, which gives higher angular resolution at the expense of
+computation time. The default is index 1, which gives 1922 points, index 0 gives 1082
+points, index 2 gives 3002 points.
+
+.TP
+.B \-curvepriork\fR <\fIk\fR>
+Concentration parameter for the prior distribution on fibre orientations given the fibre
+orientation at the previous step. Larger values of \fIk\fR make curvature less likely. 
+The curvature prior is Watson distributed, so P(X_i | X_{i-1}) is proportional to 
+exp[k (X_i^T X_{i-1})^2]. The optimum value is defined heuristically, but a suggested range 
+of values is 0 to 5. You may use either this or \fB-curvepriorg\fR but not both.
+
+The default is 0, which gives a uniform prior distribution.
+
+.TP
+.B \-curvepriorg\fR <\fIg\fR>
+Concentration parameter for the prior distribution on fibre orientations given the fibre
+orientation at the previous step. Larger values of \fIg\fR make curvature less likely. 
+Given the previous tracking vector V the prior on the present step, P(X) is 
+P(X) = K [X . V]^g for all positive values of [X. V], where K is a normalization constant. 
+If the angle between the U and X is greater than 90 degrees, the prior is zero. 
+A value of g=1 means that P(X | V) is directly proportional to the cosine of the angle between 
+X and V. Using this option overrides a Watson curvature prior.
+
+The default is 0, which gives a uniform prior distribution. 
+
+.TP
+.B \-extpriorfile\fR <\fIfile\fR>
+Path to a PICo image produced by \fBpicopdfs\fR. The PDF in each voxel is used as a prior
+for the fibre orientation in Bayesian tracking. The prior image must be in the same space
+as the diffusion data.
+
+.TP
+.B \-pdf\fR <\fIbingham\fR | \fIwatson\fR | \fIacg\fR>
+Specifies the model for PICo priors (not the curvature priors). The default is "bingham".
+
+.TP
+.B \-extpriordatatype\fR <\fItype\fR>
+Datatype of the prior image. The default is "double".
+
+
+.SH BOOTSTRAP OPTIONS
+.TP
+.B \-bsdatafiles\fR <\fIfile1\fR \fIfile2\fR ... \fIfileN\fR>
+
+Specifies files containing raw data for repetition bootstrapping. Use \fB-inputfile\fR
+for wild bootstrap data.
+
+
+.SH BEDPOSTX OPTIONS
+
+.TP
+.B \-bedpostxdir\fR <\fIdir\fR>
+
+Directory containing bedpostx output for tracking with input models bedpostx or bedpostx_dyad.
+
+.TP
+.B \-bedpostxminf\fR <\fIminF\fR>
+
+Zeros out compartments in bedpostx data with a mean volume fraction f of less than minF.
+The default is 0.01.
+
+
+
+.SH OUTPUT OPTIONS
+
+.TP
+.B \-gzip
+Compress output using the gzip algorithm.
+
+.TP
+.B \-outputroot\fR <\fIstring\fR>
+
+Prepended onto all output file names. Used to segregate output by ROI. If this is not
+specified, all output goes to the file specified with the \fB-outputfile\fR option. If no
+output file is specified, the output goes to stdout.
+
+.TP
+.B \-outputfile\fR <\fIstring\fR>
+
+Name of the file to which all output should be written. This option is ignored if
+\fB-outputroot\fR is set.
+
+
+.SH PARALLEL TRACKING
+
+.TP
+.B \-regionindex \fR <\fIindex\fR>
+Only the ROI with the label \fIindex\fR is tracked. See the section PARALLEL TRACKING.	
+
+
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), dtlutgen(1), picopdfs(1), countseeds(1), procstreamlines(1)
+
+
+.SH BUGS
+
+
+SEEDING IN MULTI-FIBRE VOXELS USING DWI DATA
+
+Affects input model \fIrepbs_multitensor\fR only
+
+When multi-fibre models are fit to DWI data, the order in which the fibre orientations are
+returned to the tracking process is undefined, so it's possible that when another bootstrap 
+sample is drawn to track along the second PD, the order of the compartments will be reversed.

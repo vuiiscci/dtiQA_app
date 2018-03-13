@@ -1,0 +1,61 @@
+.\" $Id: trd.1,v 1.6 2006/03/14 19:44:24 ucacpco Exp $
+
+.TH trd 1
+
+.SH NAME
+md \- Computes the mean diffusivity (trace/3) from diffusion tensors.
+
+.SH SYNOPSIS
+.B md
+[-inputmodel <dt|twotensor|threetensor|multitensor>]
+
+.SH DESCRIPTION
+Reads diffusion tensor (single, two-tensor or three-tensor) data from the standard input,
+computes the mean diffusivity, ie trace/3, of each tensor and outputs the results to the
+standard output. For multiple-tensor data the program outputs the mean diffusivity of
+each tensor, so for three-tensor data, for example, the output contains three values per
+voxel.
+
+.SH EXAMPLES
+
+Compute MD in each voxel of diffusion MRI data set SubjectA.Bfloat and store the output
+in MD_A.Bdouble:
+
+dtfit SubjectA.Bfloat test/A.scheme | md > MD_A.Bdouble
+
+Compute MD for each component of the two-tensor fit to the same data set:
+
+twotenfit SubjectA.Bfloat test/A.scheme | md -inputmodel twotensor > MD_A.Bdouble
+
+Compute MD for 10000 independent trials of fitting the diffusion tensor to data
+synthesized from test function 1 (see datasynth(1)) using imaging scheme A.scheme and
+assuming signal to noise ratio of 16 at b=0:
+
+datasynth -testfunc 1 -voxels 10000 -snr 16 -schemefile A.scheme | dtfit - A.scheme | md
+> MD_A_SNR16.Bdouble
+
+.SH OPTIONS
+.TP
+.B \-inputmodel\fR <\fImodel type\fR>
+Specifies the model that the input data contains parameters for. Possible model types
+are: "dt" (diffusion-tensor data), "twotensor" (two-tensor data), "threetensor"
+(three-tensor data). By default, the program assumes that the input data contains a
+single diffusion tensor in each voxel.
+
+.TP
+.B \-inputdatatype\fR <\fIdata type of input\fR>
+Specifies the data type of the input file.   The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double".
+
+.TP
+.B \-outputdatatype\fR <\fIdata type of output\fR>
+Specifies the data type of the output data.   The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". See camino(1).
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+trd(1), fa(1), dtpds(1), dtfit(1), twotenfit(1), threetenfit(1), modelfit(1).
+
+.SH BUGS

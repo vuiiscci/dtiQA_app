@@ -1,0 +1,73 @@
+.\" $Id$
+
+.TH analyze2voxel 1
+
+.SH NAME
+analyze2voxel \- Converts scanner-order data in Analyze format to voxel-order data.
+
+.SH SYNOPSIS
+.B analyze2voxel
+-4dimage <file> | -imagelist <file> [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+This program is now a wrapper for \fBimage2voxel\fR, which also supports image formats
+other than Analyze.
+
+.SH EXAMPLES
+Convert a 4D scanner order data file ScannerOrder.img, for which the measurement volume
+has size 128x128x60 and the acquisition scheme acquires 6 measurements with b=0 and 54
+diffusion-weighted measurements, to voxel order. The header ScannerOrder.hdr has
+height=128, width=128, depth=60, nImages=60.
+
+  analyze2voxel -4dimage ScannerOrder > VoxelOrder.Bfloat
+
+This is equivalent to the command:
+
+  scanner2voxel -voxels 983040 -components 60 < ScannerOrder.img > VoxelOrder.Bfloat
+
+Convert Analyze images stored as 3D volumes, listed in the file volumes.txt, to voxel
+order, and output the results as double:
+
+  analyze2voxel -imagelist volumes.txt -outputdatatype double > VoxelOrder.Bdouble
+
+Do the same thing, but this time the 3D volumes are in the directory ./data
+
+  analyze2voxel -imagelist volumes.txt -imageprefix ./data/ -outputdatatype double > VoxelOrder.Bdouble
+
+.SH OPTIONS
+
+.TP
+.B \-4dimageroot\fR <root>
+Root for a file \fIroot\fR.hdr and \fIroot\fR.img. This should be a 4D Analyze file where
+ each 3D volume is an image from a single diffusion-weighted measurement. The order of
+the measurement volumes must correspond to the accompanying scheme file. This option is
+deprecated (though it still works) and has been replaced by the \fB-4dimage\fR option,
+which takes the full header file name rather than just the root.
+
+.TP
+.B \-imagelist\fR <\fIfilename\fR>
+Name of a file containing a list of 3D Analyze headers. The images paired with each
+header are images of a single diffusion-weighted measurement. The order of the headers in
+the list must match the order of the corresponding measurements in the scheme file.
+
+.TP
+.B \-imageprefix\fR <\fIprefix\fR>
+Path to prepend onto filenames in the imagelist. Has no effect on paths specified on the
+command  line with \fB\-4dimageroot\fR. The default prefix is the directory containing
+the image list. This option is used when the imagelist is not in the same directory as
+the images it describes.
+
+.TP
+.B \-outputdatatype\fR <\fIdata type of output\fR>
+Specifies the data type of the output data.  The data type can be any of the following 
+strings: "char", "short", "int", "long", "float" or "double". The default output data
+type is float.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+image2voxel(1), scanner2voxel(1)
+
+.SH BUGS

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Wrapper for modelfit, does ball stick fit.
+# 
+# $Id$
+
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+if [ $# -lt 2 ]; then
+    echo "ballstickfit <data file> <scheme file> [options]"
+    exit
+fi
+
+DATAFILE=$1
+SCHEMEFILE=$2
+
+NOISEMAPFILE=$3
+
+NOISEMAPARG=""
+
+shift 2
+
+DATAOPT="-inputfile $DATAFILE"
+if [ $DATAFILE == - ]; then
+    DATAOPT=
+fi
+
+
+exec ${SCRIPTDIR}/modelfit $* -inversion -3 -schemefile $SCHEMEFILE $DATAOPT
+
+
+

@@ -1,0 +1,48 @@
+.\"$Id$
+
+.TH imagestats 1
+
+.SH NAME
+imagestats \- Does statistics on 3D images
+
+.SH SYNOPSIS
+.B imagestats -stat\fR <\fIstat\fR> \fB\-outputroot\fR \fI<root>\fR \fB-images\fR <\fIimage1 image2 ... \fR>
+
+.SH DESCRIPTION
+
+This program computes voxelwise statistics on a series of 3D images. The images must be
+in the same space; the operation is performed voxelwise and one output is produced per
+voxel.
+
+.SH EXAMPLES
+
+Get the mean of some connection probability images matching cp*.nii.gz
+
+  imagestats -operation mean -outputroot mean_cp -images cp*.nii.gz
+
+.SH OPTIONS
+
+.TP
+.B \-images\fR <\fimage1\fR> <\fimage2\fR> ...
+List of images to process. They must be in the same space and have the same dimensions.
+
+.TP
+.B \-outputdatatype\fR <\fItype\fR> 
+A Camino data type string, default is "float". Type must be signed.
+
+.TP
+.B \-outputroot\fR <\fIfile\fR>
+File root for the output. The extension will be determined from the input.
+
+.TP
+.B \-stat\fR <\fIstat\fR>
+The statistic to compute: min, max, mean, median, sum, std (standard deviation), or var
+(variance).
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+procstreamlines(1)
+
+.SH BUGS

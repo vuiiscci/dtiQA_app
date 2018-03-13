@@ -1,0 +1,85 @@
+.\" $Id: qballmx.1,v 1.3 2006/04/20 12:54:35 ucacdxa Exp $
+
+.TH qballmx 1
+.SH NAME
+qballmx \- Creates a reconstruction matrix for Q-Ball 
+
+.SH SYNOPSIS
+.B qballmx -schemefile \fR <\fIfilename\fR>
+.SH DESCRIPTION
+Generates a reconstruction matrix for Q-Ball. Used to reconstruct data acquired with the
+scheme specified in <scheme file> using linrecon.
+
+.SH EXAMPLES
+Generates a linear inversion matrix for the scheme A.scheme using:
+
+# Create a linear transform matrix for Q-Ball. This command uses the default setting of
+rbf sigma = 0.2618 (15 degrees), data smoothing sigma = 0.1309 (7.5 degrees), rbf
+pointset 246
+
+qballmx -schemefile A.scheme > A_QBALLMX.Bdouble
+
+The settings used for the basis functions are displayed using the error stream. It is
+advised that you save these settings for future reference.
+
+Further examples:
+
+ 1. Using Radial Basis Functions
+ # Create the inversion matrix
+ qballmx -schemefile A.scheme -basistype rbf -rbfpointset 246 -rbfsigma 0.2618 -smoothingsigma 0.1309 > A_QBALLMX.Bdouble
+ 
+ # Run it over each voxel
+ linrecon SubjectA.Bfloat A.scheme A_QBALLMX.Bdouble -normalize > QBallCoeffsA.Bdouble
+
+2. Using Spherical Harmonics
+
+ # Create the inversion matrix
+ qballmx -schemefile A.scheme -basistype sh -order 4 > A_QBALLMX.Bdouble
+
+ # Run it over each voxel
+ linrecon SubjectA.Bfloat A.scheme A_QBALLMX.Bdouble -normalize > QBallCoeffsA.Bdouble
+
+.SH OPTIONS
+
+.TP
+General options:
+
+.TP
+.B \-basistype\fR <\fIbasis function type\fR>
+
+		rbf - use radial basis functions				sh - use
+spherical harmonics
+
+.TP
+.B \-schemefile\fR <\fIScheme file name\fR>
+See modelfit(1).
+
+.TP
+Specific to radial basis functions (rbf):
+
+.TP
+.B \-rbfpointset\fR <\fIpointset to use\fR>
+		sets the number of radial basis functions to use.  The value specified
+must be present in the Pointsets directory.  The default value is 246
+
+.TP
+.B \-rbfsigma\fR <\fIrbf width\fR>
+		sets the width of the basis functions used for interpolation.  If not
+specified, a default value of 0.2618 is used.	  
+
+.TP
+.B \-smoothingsigma\fR <\fIrbf width\fR>
+		sets the width of the basis functions used to smooth the data.	If this
+flag is omitted, a default value of 0.1309 is used.	
+
+.TP
+Specific to spherical harmonics (sh):
+
+.TP
+.B \-order\fR <\fImaximum order\fR>
+		maximum order of the spherical harmonic series	
+
+.SH "SEE ALSO"
+linrecon(1).
+
+.SH BUGS

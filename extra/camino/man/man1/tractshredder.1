@@ -1,0 +1,33 @@
+.\" $Id$
+
+.TH tractshredder 1
+
+.SH NAME
+tractshredder \- Extracts bunches of streamlines.
+
+.SH SYNOPSIS
+.B tractshredder
+<\fIoffset\fR> <\fIbunchsize\fR> <\fIspace\fR>
+
+.SH DESCRIPTION
+tractshredder works in a similar way to \fBshredder\fR, but processes streamlines instead
+of scalar data. The input is raw streamlines, in the format produced by \fBtrack\fR or
+\fBprocstreamlines\fR.
+
+The program first makes an initial offset of \fIoffset\fR tracts. It then reads and
+outputs a group of \fIbunchsize\fR tracts, skips \fIspace\fR tracts, and repeats until
+there is no more input.
+
+.SH EXAMPLES
+
+Output every third streamline from the file tracts.Bfloat.
+
+cat tracts.Bfloat | tractshredder 0 1 2 > shredded.Bfloat
+
+.SH AUTHORS
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+shredder(1)
+
+.SH BUGS

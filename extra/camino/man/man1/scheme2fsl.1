@@ -1,0 +1,54 @@
+.\" $Id: scheme2fsl.1,v 1.1 2006/08/17 20:24:23 ucacpco Exp $
+
+.TH scheme2fsl 1
+
+.SH NAME
+scheme2fsl \- Reads a Camino scheme file and writes FSL bvecs and bvals files.
+
+.SH SYNOPSIS
+.B scheme2fsl 
+\fB\-bscale\fR <\fIfactor\fR> [\fB\-flipx\fR] [\fB\-flipy\fR] [\fB\-flipz\fR]
+
+.SH DESCRIPTION
+
+This program reads a Camino scheme file and writes FSL b-vector and b-value files. The
+b-values are assumed to be specified in s / m^2 in the scheme file. The default scaling
+factor is therefore 10^{-6}, to produce b-values with units of s/mm^{-2} in the output.
+Use -bscale 1.0 to preserve the units.
+
+Some scheme formats do not specify the b-value explicitly - in which case the b-value is
+calculated by this program in the same way that it is calculated the input scheme file is
+used by Camino for diffusion tensor reconstruction.
+
+.SH EXAMPLES
+
+Output bvals and bvecs in the current directory.
+
+  scheme2fsl -inputfile A.scheme -outputroot A
+
+.SH OPTIONS
+
+.TP
+.B \-bscale\fR <\fIfactor\fR>
+Scaling factor to convert the b-values into different units. Default is 10^{-6}, converts
+s / m^2 to s / mm^2.
+
+.TP
+.B \-flipx\fR 
+Negate the x component of all the vectors.
+
+.TP
+.B \-flipy\fR 
+Negate the y component of all the vectors.
+
+.TP
+.B \-flipz\fR 
+Negate the z component of all the vectors.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+camino(1)
+
+.SH BUGS

@@ -1,0 +1,96 @@
+.\" $Id: fa.1,v 1.7 2006/04/21 13:53:36 ucacpco Exp $
+
+.TH datastats 1
+
+.SH NAME
+datastats \- Computes simple statistics of each diffusion weighted measurement within a
+region of interest.   Useful for estimating the noise level.
+
+.SH SYNOPSIS
+.B datastats
+[-schemefile <filename> -bgmask <filename>]
+
+.SH DESCRIPTION
+Reads a data file from the acquisition scheme specified in the schemefile. The ROI can be
+specified in a mask file or by thresholding the b=0 image using -bgthresh. The program
+computes the mean, mean squared, variance and standard deviation of each image in the
+foreground region specified by the mask file.
+
+.SH EXAMPLES
+
+Create a mask for data file SubjectA.Bfloat:
+
+mask -inputfile SubjectA.Bfloat -schemefile A.scheme -bgthresh 200 -outputdatatype short
+> SubjectA_M200.Bshort
+
+Compute the statistics:
+
+datastats -inputfile SubjectA.Bfloat -schemefile A.scheme -bgmask SubjectA_M200.Bshort
+
+Foreground voxel count: 3248
+
+Component E(S) E(S^2) Var(S) Std(S)
+
+ 1          1.388036E02    2.061075E04    1.344318E03    3.666494E01
+ 2          1.376616E02    2.016732E04    1.216598E03    3.487977E01
+ 3          1.378830E02    2.030152E04    1.289794E03    3.591370E01
+ 4          1.391675E02    2.067510E04    1.307506E03    3.615945E01
+ 5          1.381736E02    2.036596E04    1.274002E03    3.569317E01
+ :
+ :
+
+Useful for estimating the noise level (as required for restore or mbalign) or signal to
+noise. An estimate of the noise level sigma (standard deviation of each component of the
+complex noise on the signal) is sqrt(E(S^2)/2) from an ROI entirely in background. Eg,
+draw an ROI in background on the FA image from the data set using MRIcro. (The mask
+volume should be the same size as one component of the full DWI data set.) Save the mask
+as an analyze image ROI->Export ROI as Analyze Image; Save [Sun]. MRIcro saves the mask
+as type char, so to measure the statistics in the region run:
+
+datastats -inputfile SubjectA.Bfloat -schemefile A.scheme -bgmask A_BG.img -maskdatatype
+char
+
+If the ROI is truly in background, you should see little variation among the different
+diffusion weighted images, so can choose any to compute sigma.
+
+.SH OPTIONS
+.TP
+.B \-inputfile\fR <\fIfile\fR>
+Diffusion-weighted MRI data file in voxel order.
+
+.TP
+.B \-schemefile\fR <\fIfile\fR>
+Schemefile.
+
+.TP
+.B \-bgthresh\fR <\fIinteger\fR>
+The threshold on the average b=0 measurement.
+
+.TP
+.B \-inputdatatype\fR <\fIdata type of input\fR>
+Specifies the data type of the input file.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". See camino(1).
+
+.TP
+.B \-outputdatatype\fR <\fIdata type of output\fR>
+Specifies the data type of the output data.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". See camino(1).
+
+.TP
+.B \-bgmask\fR <\fIMask file\fR>
+Mask file name.  The mask file contains zero in background voxels and non-zero in
+foreground. The mask must be big endian; the default data type is 16-bit shorts, but can
+be changed using the -maskdatatype option.
+
+.TP
+.B \-maskdatatype\fR <\fIchar|short|int|long|float|double\fR>
+Specifies the type of the mask file; must be big-endian byte ordering.
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+mask(1), restore(1), mbalign(1), modelfit(1).
+
+.SH BUGS
+No known bugs.

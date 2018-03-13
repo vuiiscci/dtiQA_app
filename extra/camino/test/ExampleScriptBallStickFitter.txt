@@ -1,0 +1,37 @@
+# Test script for BallStickLM_GaussianFitter
+
+
+
+#To synthesize noisy ballstick data
+datasynth -synthmodel  compartment 2 STICK 0.7 1.7E-9 0.0 0.0 BALL 1.7E-9 -snr 20
+-schemefile scheme.v1  -voxels 1 -outputfile v1BSnoise.Bfloat
+
+#Fit BallStickLM_GaussianFitter
+-inputfile v1BSnoise.Bfloat -inputdatatype float -fitmodel BALLSTICK 
+-fitalgorithm LM -schemefile scheme.v1  -voxels 1 -outputfile v1BSfit.Bfloat
+
+#fitted parameters (output)
+#1.000000101051122
+#0.6999999976147692
+#0.30000000238523084
+#1.699999115893143E-9
+#-4.154112871163504E-7
+#0.024611398683327644
+#1.699999115893143E-9
+#3.9820249540924895E-12
+
+#Fit BallStickMultiRunLM_GaussianFitter
+modelfit -inputfile v1BSnoise.Bfloat -inputdatatype float -fitmodel BALLSTICK 
+-fitalgorithm MULTIRUNLM -schemefile scheme.v1  -voxels 1 -outputfile v1BSfitm.Bfloat
+
+
+#fitted parameters (output)
+#1.0000000048689546
+#0.7000000051256039
+#0.2999999948743961
+#1.6999999715802055E-9
+#1.6878175368099793E-8
+#-0.8995754993037568
+#1.6999999715802055E-9
+#1.6291908671272254E-14
+

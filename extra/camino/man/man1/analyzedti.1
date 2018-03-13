@@ -1,0 +1,160 @@
+.\" $Id$
+
+.TH analyzedti 1
+
+.SH NAME
+analyzedti \- Takes Analyze format raw data and outputs DT data in Analyze format
+
+.SH SYNOPSIS
+.B analyzedti
+<\fI4dimageroot\fR | \fIimagelist\fR> <\fIoutput root\fR> <\fIschemefile\fR> 
+[\fB-bgmask\fR <\fIfile\fR> \fB-bgthresh\fR <\fIvalue\fR> \fB-inversion\fR <\fIvalue\fR>
+-\fBoutputdatatype\fR <\fItype\fR>]
+
+.SH DESCRIPTION
+
+This script is a wrapper that takes Analyze input and outputs the following Analyze
+images:
+
+ excode.hdr (exit codes	for the reconstruction)
+ lns0.hdr   (log of the mean S(0) in each voxel)
+ dxx.hdr    (component dxx of diffusion tensor)        
+ dxy.hdr    (component dxy of diffusion tensor)            
+ dxz.hdr    (component dxz of diffusion tensor)            
+ dyy.hdr    (component dyy of diffusion tensor)            
+ dyz.hdr    (component dyz of diffusion tensor)            
+ dzz.hdr    (component dzz of diffusion tensor)            
+ dl1.hdr    (Largest  eigenvalue of the tensor)            
+ dl2.hdr    (Middle   eigenvalue of the tensor)            
+ dl3.hdr    (Smallest eigenvalue of the tensor)            
+ fa.hdr     (Fractional anisotropy)
+ tr.hdr     (Trace of the diffusion tensor)
+ rd.hdr     (Radial diffusion: average of the two smallest eigenvalues)
+
+Other statistics may be computed in addition to the above output. See OPTIONS. As well as
+the Analyze output, the tensors and the eigen decompositions are also stored in Camino
+format.
+
+The \fIoutput root\fR is prepended onto the above file names. If the output root is a
+directory (for example, "./"), then include a trailing directory separator.
+
+The default data type of each output image is 64-bit big-endian double. This may be
+changed with the \fB-outputdatatype\fR option.
+
+The input can either be a 4D Analyze file or a text file containing a list of 3D Analyze
+images, in the format described in analyze2voxel(1). The 3D images are assumed to be be
+in the same directory as the text file, unless the \fB\-imageprefix\fR option is used.
+
+The script expects a scheme file in SI units, see camino(1).
+
+In addition to the Analyze images, two Camino files are produced:
+
+ dt.B${type}           (diffusion tensors)
+ dt_eig_sys.B${type}   (diffusion tensor eigen systems)
+
+These files can be used as input to other Camino programs.
+
+.SH SPM SCALING
+
+For input: the data is scaled according to the SPM scale fields in the Analyze header.
+Scaling is not applied if the scale slope is 0 (which would result in a zero image).
+
+For output: The SPM "scale" field in the Analyze header is set to 1E12 by default in the
+headers d??.hdr and tr.hdr. This allows easy visualization of the tensor elements,
+eigenvalues, and trace in units of 10^6 mm^2 / s in MRICro (and other programs that use
+SPM's scale field). The associated values in the .img files are NOT scaled, and remain in
+the units of the scheme file. The header scale factor can be manually set by using the
+\fB-hdrscale\fR option.
+
+ 
+
+.SH EXAMPLES
+
+Read the 4D Analyze DWI file DW.hdr, scheme file EPI.scheme, and output images to the
+dtimg directory:
+
+   analyzedti DW.hdr ./dtimg/ EPI.scheme
+
+Do the same thing, but run a nonlinear tensor fit and set all voxels with S(0) < 100 to
+background:
+
+   analyzedti DW.hdr ./dtimg/ EPI.scheme -bgthresh 100 -inversion 2
+
+.SH OPTIONS
+
+The first three arguments are required. Additional options include
+
+.TP
+.B \-bgmask <\fIfile\fR>
+A brain / background binary mask. See modelfit(1). The associated option
+\fB-maskdatatype\fR is	also allowed.
+
+.TP
+.B \-bgthresh <\fIvalue\fr>
+Threshold on the unweighted signal, voxels below \fIvalue\fR will be marked as
+background. See modelfit(1).
+
+.TP
+.B \-inversion
+The type of diffusion tensor calculation. The default is a linear fit, the same as the 
+default for \fBmodelfit\fR. Any diffusion-tensor reconstruction is allowed, including
+RESTORE and its associated options. See modelfit(1). Multi-tensor reconstruction is not
+supported by this script.
+
+.TP
+.B \-imageprefix <\fIprefix\fR>
+If the imagelist is not in the same directory as the data files it describes, then
+specify the directory with this option, including a trailing directory separator char.
+
+.TP
+.B \-outputdatatype
+Sets the output data type of the images. Must be one of: char, short, int, float, long,
+double.
+
+.TP
+.B \-vodata
+Outputs the raw data, arranged in voxel order, as big-endian floats. This is the default
+input data type for Camino programs that expect raw data.
+
+.TP
+.B \-gzip
+Compresses output of Camino data files and .img files.
+
+.TP
+.B \-hdrscale \fR <\fIscale\fR>
+Sets SPM scale field in the Analyze header to \fIscale\fR. Default is 1E12.
+
+.TP
+.B \-md
+Computes the mean diffusivity (md = tr / 3).
+
+.TP
+.B \-rd
+Computes the radial diffusivity (rd = [l2 + l3] / 2).
+
+.TP
+.B \-ra
+Computes the relative anisotropy.
+
+.TP
+.B \-2dfa
+Computes the fractional anisotropy of the 2D cross section of the tensor, which has
+eigenvalues l2 and l3.
+
+.TP
+.B \-cl
+Computes the linearity statistic, see dtshape(1).
+
+.TP
+.B \-cp
+Computes the planarity statistic, see dtshape(1).
+
+.TP
+.B \-cs
+Computes the spherical statistic, see dtshape(1).
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+analyze2voxel(1), modelfit(1), fa(1), trd(1), dteig(1)

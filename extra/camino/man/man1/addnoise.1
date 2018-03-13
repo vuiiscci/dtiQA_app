@@ -1,0 +1,67 @@
+.\" $Id: addnoise.1,v 1.2 2006/04/20 12:54:32 ucacdxa Exp $
+
+.TH addnoise 1
+
+.SH NAME
+addnoise \- Adds noise to diffusion MRI measurements.
+
+.SH SYNOPSIS
+.B addnoise -sigma <noise std> [-noisetype <type>]
+
+.SH DESCRIPTION
+Reads diffusion MRI data and adds noise with standard deviation specified with the -sigma
+option. By default the noise is Rician with the specified value of sigma, but can be
+Gaussian by specifying -noisetype gaussian.
+
+The -sigma <sig> option specifies the standard deviation of the noise.
+With the Gaussian noise model, addnoise adds a Gaussian-distributed
+random number with mean zero and standard deviation <sig> to each
+measurement in the input data set.  If you choose Rician noise, it
+adds real and imaginary random numbers each Gaussian distributed with
+zero mean and std <sig>, then takes the modulus, ie S = |S*+N1 + i N2|
+where S is the noisy signal, S* is the noise free signal, and N1 and
+N2 are the random numbers.
+
+The signal to noise ratio (SNR) is S*/<sig>.  That value varies with
+the diffusion weighting, so often we say that the SNR of a whole data
+set is S*(0)/<sig>, where S*(0) is the b=0, ie unweighted, signal.  If
+using addnoise with synthetic data from datasynth and the data comes
+from a compartment or tensor model, S*(0) is usually 1; if it comes
+from a Monte Carlo simulation, it is the number of walkers in the
+simulation.  You need to adjust <sig> accordingly to give the SNR you
+want.
+
+.SH EXAMPLES
+Add Rician noise to synthetic data:
+
+datasynth -testfunc 1 -schemefile A.scheme -voxels 10 | addnoise -sigma 0.0625
+
+The above is very similar to:
+
+datasynth -testfunc 1 -schemefile A.scheme -voxels 10 -snr 16
+
+only addnoise uses a different random number generator.
+
+Add Gaussian noise instead:
+
+datasynth -testfunc 1 -schemefile A.scheme -voxels 10 | addnoise -sigma 0.0625 -noisetype
+Gaussian
+
+.SH OPTIONS
+
+.TP
+.B \-noisetype\fR [\fIrician|gaussian\fR]
+Specifies the noise model.  The default is Rician, can also specify Gaussian.
+
+.TP
+.B \-sigma\fR  <\fIS\fR>
+Specifies the noise level.  This is the standard deviation of the Gaussian distribution
+for Gaussian noise or that of the isotropic Gaussians on each component for Rician noise.
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+datasynth(1)
+
+.SH BUGS

@@ -1,0 +1,79 @@
+: # auto find perl code.
+     eval 'exec perl -S $0 "$@"'
+     if 0;
+
+
+# Converts an old format schemefile to the new format given
+# the extra required information.
+#
+# Usage: OldPointSetToNew <oldschemefile> <DELTA> <delta> <TE>
+#
+# modQ = sqrt(b/t), t is the diffusion time.
+#
+# $Id: PointSetToScheme,v 1.2 2006/03/08 17:00:49 ucacdxa Exp $
+
+$schemeFile = shift || die "I need an the old scheme file.\nUsage:  OldPointSetToNew <oldschemefile> <DELTA> <delta> <TE>";
+$bigDel = shift || die "I need big delta.\nUsage:  OldPointSetToNew <oldschemefile> <DELTA> <delta> <TE>";
+$smallDel = shift || die "I need little delta.\nUsage:  OldPointSetToNew <oldschemefile> <DELTA> <delta> <TE>";
+$te = shift || die "I need TE.\nUsage:  OldPointSetToNew <oldschemefile> <DELTA> <delta> <TE>";
+
+# Gyromagnetic ratio
+$GAMMA = 2.6751987E8;
+
+# Print the version number
+print "VERSION: 1\n";
+
+open(OLDSCHEME, $schemeFile);
+
+$s=0;
+while(<OLDSCHEME>) {
+
+    if($s == 0) {
+
+	# Do nothing.  The first line contains the diffusion time.
+
+    }
+    elsif($s == 1) {
+
+	# Do nothing.  The second line contains the number of measurements
+
+    }
+    elsif($s%3 == 2) {
+
+	# Read in qx
+	$qx = $_;
+
+    }
+    elsif($s%3 == 0) {
+
+	# Read in qy
+	$qy = $_;
+
+    }
+    elsif($s%3 == 1) {
+
+	# Read in qz
+	$qz = $_;
+
+	# Compute the gradient strength and direction
+	$modQ = sqrt($qx*$qx + $qy*$qy + $qz*$qz);
+	$gx = 0;
+	$gy = 0;
+	$gz = 0;
+	if($modQ > 0) {
+		$gx = $qx/$modQ;
+		$gy = $qy/$modQ;
+		$gz = $qz/$modQ;
+	}
+
+	$G = $modQ/($smallDel*$GAMMA);
+
+	# And output the next line
+	printf("% 0.5f  % 0.5f  % 0.5f  %0.5f  %0.5f  %0.5f  %0.5f\n", $gx,$gy,$gz,$G,$bigDel,$smallDel,$te);
+
+    }
+
+    $s = $s+1;
+}
+
+close(POINTSFILE);

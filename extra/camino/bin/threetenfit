@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Wrapper for modelfit that provides a simple interface for simply
+# fitting three diffusion tensors to diffusion MRI data in a file.
+# 
+# $Id: threetenfit,v 1.3 2005/08/04 13:50:47 ucacpco Exp $
+
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+if [ $# -lt 2 ]; then
+    echo "threetenfit <data file> <scheme file> [-cylsym]"
+    exit
+fi
+
+DATAFILE=$1
+SCHEMEFILE=$2
+
+INVERSION=231
+if [ $# -eq 3 ] && [ $3 == -cylsym ]; then
+    INVERSION=211
+fi
+
+DATAOPT="-inputfile $DATAFILE"
+if [ $DATAFILE == - ]; then
+    DATAOPT=
+fi
+
+exec ${SCRIPTDIR}/modelfit $DATAOPT -schemefile $SCHEMEFILE -inversion $INVERSION
+
+
+

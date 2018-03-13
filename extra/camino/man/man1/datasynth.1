@@ -1,0 +1,489 @@
+.\" $Id: datasynth.1,v 1.10 2006/04/21 13:18:46 ucacmgh Exp $
+
+.TH "datasynth" 1
+.SH NAME
+datasynth \- Generates synthetic diffusion MRI data.
+
+.SH SYNOPSIS
+.B datasynth
+[\-options]
+
+.SH DESCRIPTION
+Generates synthetic diffusion MRI data either using a test function or a  Monte-Carlo
+simulation for the spin-displacement density and an image acquisition scheme. The program
+outputs data in the format required by fitting programs such as dtfit, so the output of
+datasynth can be piped straight into these programs. By default the output is voxel-order
+four-byte floating point data.
+
+If a scheme file is specified, it must either be in SI units for the standard test
+functions to work (since they use tensors in SI units). You may use scheme files in other
+units if you specify the full diffusion tensor to be used in the test function.
+
+.SH EXAMPLES
+
+Generate 10000 voxels of synthetic data from a zero-mean Gaussian test function with
+diffusion tensor diag(17, 2, 2)*10^{-10} m^2 s^{-1} and signal to noise ratio 16 (Rician
+noise: see -noisetype) with no diffusion weighting using the acquisition scheme specified
+in A.scheme and store the data in file P1_A10000.Bfloat:
+
+  datasynth -testfunc 1 -snr 16 -schemefile A.scheme -voxels 10000 > P1_A10000.Bfloat
+
+Generate 10000 voxels of data from a mixture of two zero-mean Gaussians with diffusion
+tensors diag(30, 6, 6)*10^{-10} m^2 s^{-1} and diag(6, 30, 6)*10^{-10} m^2 s^{-1} and
+signal to noise ratio of 16 at q=0 using a spherical acquisition scheme with M=8
+measurements at b=0, N=61 gradient directions, radial wavenumber |q|=200000 m^{-1} and
+diffusion time tau=0.04:
+
+  datasynth -testfunc 3 -snr 16 -fixedmodq 8 61 200000 0.04 -lambda1 1.5E-9 -scale 2 -voxels 10000 > P1_V10000.Bfloat
+
+Equivalently,
+
+  datasynth -gaussmix 2 30E-10 0 0 6E-10 0 6E-10 0.5 6E-10 0 0 30E-10 0 6E-10 0.5 -snr 16 -fixedmodq 8 61 200000 0.04 -voxels 10000 > P1_V10000.Bfloat
+
+datasynth can also read input data, such as diffusion-tensor data or two-tensor data in
+the format output by modelfit, dtfit or twotenfit. Given input data, datasynth generates
+synthetic diffusion-weighted MRI measurements for each voxel using the input data to
+specify the test function. For example:
+
+ datasynth -inputfile DiffTensorA.Bdouble -inputmodel dt -schemefile A.scheme > SyntheticMeasurementsA.Bfloat
+
+creates a data set of synthetic measurements from the diffusion tensor data in
+DiffTensorA.Bdouble.
+
+Here is a slightly pathological example to illustrate how this feature can be used:
+
+ modelfit -testfunc 1 -inversion 1 -voxels 1 -schemefile A.scheme | datasynth -inputmodel
+ dt -schemefile A.scheme -snr 16 | modelfit -inversion 1 -voxels 1 -schemefile A.scheme
+
+Note that only one voxel of data is produced per test function when the \fB-inputmodel\fR
+option is used. The \fB\-voxels\fR option is not used in this case. If we wanted 1000
+voxels of data from DiffTensorA.Bdouble, we write 1000 voxels containing the same
+information to DiffTensorA.Bdouble.
+
+.SH MONTE-CARLO SIMULATION EXAMPLES
+
+\fBdatasynth\fR can also synthesise data using a Monte-Carlo simulation of spins
+executing brownian motion on a specified substrate which restricts the motion of their
+excursions. Specifying any simulation-realted option will cause datasynth to use a
+simulation instead of a test function. Monte-Carlo simulation requires more information
+about scan parameters than is contained in a schemefile, and so gradient strength G,
+gradient pulse duration delta and pulse interval DELTA should ALL be specified from the
+commandline. The type and size of substrate should also be specified. If the commandline
+values of delta, DELTA and G are different from those in the schemefile, commandline
+values will be used.
+
+To synthesise 10000 voxels of data using the schemefile A.scheme, with gradient strength
+with gradient strength G=0.022Tm-1, gradient block duration delta=0.032s and gradient
+block interval DELTA=0.04s with 10000 spins on a substrate with one principal direction
+and 1000 timesteps in the scan, use
+
+datasynth -schemefile tensorDirs_b=500.scheme -voxels 10000 -walkers 100000 -tmax 1000 -p
+0.0 -initial uniform -snr 16.0 -G 0.022 -del 0.032 -DEL 0.04 -geometry cylinder -packing
+SQUARE -cylinderrad 1.9E-6 -cylindersep 4E-6 > MCdata.Bfloat
+
+we have also specified that spins are initially uniformly distributed across the
+substrate with impermeable barriers, and an SNR of 16. The diffusion environment here is
+a set of cylinders parallel to the z-axis with radius and separation given by the
+-cylinderrad and -cylindersep options. -packing SQUARE causes cylinders to be square
+packed, substituting HEX will cause hexagonal packing. the limit of close-packing will be
+acheived by specifying a cylinder radius equal to half the separation.
+
+Monte-Carlo simulations of cylinders with distributed radii are also possible. Radii are draw 
+from a gamma distribution with specified parameters. Cylinders are oriented parallel to the 
+z-axis, and are packed into a region of specified size. Cylinders will be packed in a 
+disordered but non-overlapping pattern. If the specified region is too small to contain the 
+number of cylinders specified an warning will be generated. The following command specifies 
+100000 spins, 5000 timesteps, 100 cylinders with radii drawn from a gamma distribution with 
+scale parameter 1.065E-7 and shape parameter 5.9242 packed into a cubic region 
+1.4E-5m x 1.4E-5m x 1.4E-5m in size.
+
+datasynth -walkers 100000 -tmax 5000 -geometry inflammation -numcylinders 100
+-p 0.0 -initial uniform -voxels 1 -increments 1 -separateruns -latticesize 1.4E-5 
+-schemefile STscheme.scheme -gamma 5.9242 1.065E-7
+
+The locations and radii of cylinders can be output to a csv file of specified name by adding
+-cylfile testcyls.csv to the above command.
+
+
+Crossing fibres can be simulated using
+
+datasynth -schemefile tensorDirs_b=500.scheme -voxels 10000 -walkers 100000 -tmax 1000 -p
+0.0 -initial uniform -snr 16.0 -G 0.022 -del 0.032 -DEL 0.04 -geometry crossing
+-cylinderrad 1.9E-6 -cylindersep 4E-6 > MCdata.Bfloat here cylinders are arranged in
+alternate sheets with principle axes parallel to the z- and x-axis in successive layers
+
+
+It is also possible to separate the dymanics of the Monte-Carlo simulation from the
+synthetic measurements. In this case a simulation duration (the duration, in seconds, of
+the simulated diffusion. In practice this should be long enough to accomodate your scan
+sequence) and a traj file, which stores spin trajectories and is used by the scan module
+to generate synthetic measurements.
+
+To generate spin trajectories from a monte-carlo simulation: datasynth -schemefile
+tensorDirs_b=500.scheme -voxels 10000 -walkers 100000 -tmax 1000 -p 0.0 -initial uniform
+-geometry cylinder -packing SQUARE -cylinderrad 1.9E-6 -cylindersep 4E-6 -duration 0.07
+-trajFile MC.traj
+
+In this case, no data will be written to stdout at the end of the simulation and instead
+the traj file is produced as the simulation progresses. The traj file contains ALL the
+trajectory information for every spin in the simulation and as such will be very large.
+File size is proportional to (number of spins) x (number of timesteps) and the trajfile
+from the about command will be over 300Mbytes, so caution is required in setting the
+number of walkers and timesteps. Howevere, if a wide range of scan parameters is
+required, this approach can save a lot of time.
+
+
+.SH REPETITION BOOTSTRAP EXAMPLES
+
+Repetition bootstrap data is generated by taking a number of repeated measurements of
+some data and then randomly sampling (with replacement) these repeated measurements to
+generate new combinations of the data. Let the (M+N) measurements be repeated R times and
+stored in an array data with dimensions (R, M+N). Each bootstrap sample \fBb\fR is an
+array of dimension (1, M+N) and each element b(i) = data(r(i), i), where 1 <= i <= M+N
+and r is a vector of random integers uniformly distributed between 1 and R. In other
+words, each element of the bootstrap sample, b(i), is randomly chosen from one of the R
+repeats of the measurement i.
+
+The following examples show the different ways to obtain bootstrap data.
+
+Synthesize 1000 bootstrap samples from a standard test function with 6 repeats.
+
+datasynth -testfunc 1 -schemefile A.scheme -snr 16 -bootstrap 6 -voxels 1000 >
+r6_b1000.Bfloat
+
+Synthesize 500 bootstrap samples from Gaussian test functions, where the diffusion
+tensors are stored in the file tensors.Bdouble, using 8 repeats. The output is
+
+	[ [bootstrap 0 (test func 0)] [bootstrap 1 (test function 0)]...       
+[bootstrap 499 (test func 0)] [bootstrap 0 (test func 1)]... ]
+
+datasynth -inputmodel dt -inputfile tensors.Bdouble -schemefile A.scheme -snr 16
+-bootstrap 8 -voxels 500 > r6_b1000.Bfloat
+
+Generate 1000 bootstrap samples of each voxel of DW-MR data, stored in the files
+A_1.Bfloat through A_7.Bfloat:
+
+datasynth -bsdatafiles A_1.Bfloat A_2.Bfloat A_3.Bfloat A_4.Bfloat A_5.Bfloat A_6.Bfloat
+A_7.Bfloat -voxels 1000 -schemefile A.scheme -inputdatatype float > A_b1000.Bfloat
+
+Simulate bootstrapping with 12 repeats using monte-carlo simulation as the test function.
+
+datasynth -schemefile tensorDirs_b=500.scheme -bootstrap 12 -voxels 10000 -walkers 10000
+-tmax 100000 -p 0.0 -initial uniform -steptype fixedlength -snr 16.0 -G 0.022 -del 0.032
+-DEL 0.04 -geometry cell-striped -stripethickness 1 -latticesize 200 -cellsize 2E-5 >
+bs_simdata.Bfloat
+
+.SH WILD BOOTSTRAP EXAMPLES
+
+Wild bootstrap data is generated by fitting a linear model to the data and then
+resampling. Using DTI as an example, the Gaussian model of diffusion predicts
+
+  ln S(q_i) = -q_i^T D q_i + e
+
+where q is the wavenumber of the measurement, D is the diffusion tensor, and e is the
+residual error on measurement i after finding the least-squares fit of D to the data.
+
+A wild bootstrap data sample of measurement i is then
+
+  ln w = -q_i^T D q_i + r * e * a
+
+where r is chosen at random from the set [-1, 1], and a is a correction factor applied to
+produce a heteroscedasticity consistent covariance matrix estimator. More details may be
+found in [Whitcher et al, Human Brain Mapping 29(3):346-62, 2008].
+
+The following examples show different ways to obtain wild bootstrap data.
+
+Generate bootstrap samples of FA from a single data set.
+
+  datasynth -inputfile A_1.Bfloat -voxels 1000 -schemefile A.scheme 
+  -inputdatatype float -wildbsmodel dt | dtfit - A.scheme | fa > fa.wildbs.Bdouble
+
+As with the repetition bootstrap, we get 1000 voxels of data for each voxel of input.
+
+Generate bootstrap samples of FA from diffusion tensor input.
+
+  datasynth -inputfile dt.Bdouble -inputmodel dt -snr 20 -voxels 1000 -schemefile A.scheme 
+   -wildbsmodel dt | dtfit - A.scheme | fa > fa.wildbs.Bdouble
+
+The above example produces one voxel of data (at SNR = 20) from a Gaussian test function,
+and then produces 1000 voxels of wild bootstrap data. This is repeated for each tensor in
+the file dt.Bdouble.
+
+.SH OPTIONS
+
+.TP
+Options for specifying the test function used to generate synthetic data:
+
+.TP
+.B \-testfunc\fR <\fItest function index\fR>
+Tells the program to synthesize data from a standard test function. There are five
+standard test functions:
+
+0. G(.;D_0, tau)
+
+1. G(.; D_1, tau)
+
+2. G(.; D_4, tau)
+
+3. a*G(.; D_1, tau) + (1-a)*G(.; D_2, tau)
+
+4. a_1*G(.; D_1, tau) + a_2*G(.; D_2, tau) + (1-a_1-a_2)*G(.; D_3, tau)
+
+where G(.; D, tau) is the zero-mean Gaussian function with covariance matrix 2 tau D;
+a=1/2 and a_1 = a_2 = 1/3, by default, and the diffusion tensors are:
+
+D_0 = diag(T/3, T/3, T/3)
+
+D_1 = diag(l_1, (T-l_1)/2, (T-l_1)/2)
+
+D_2 = diag((T-l_1)/2, l_1, (T-l_1)/2)
+
+D_3 = diag((T-l_1)/2, (T-l_1)/2, l_1)
+
+D_4 = diag((T+l_1)/4, (T+l_1)/4, (T-l_1)/2).
+
+By default, T = 21 * 10^{-10} m^2 s^{-1} and l_1 = 17 * 10^{-10} m^2 s^{-1} so that
+
+D_0 = diag(7, 7, 7)
+
+D_1 = diag(17, 2, 2)
+
+D_2 = diag(2, 17, 2)
+
+D_3 = diag(2, 2, 17)
+
+D_4 = diag(9.5, 9.5, 2).
+
+.TP
+.B \-lambda1\fR <\fIl_1\fR>
+Sets the value of l_1 used to define the diffusion tensors in the standard test
+functions.
+
+.TP
+.B \-scale\fR <\fIscale factor\fR>
+Sets a scaling factor for the diffusion tensors in the standard test functions.
+
+.TP
+.B \-dt2rotangle\fR <\fIrotation angle (in radians)\fR>
+Specifies a rotation angle for D_2 about the z-axis.  This allows the principal
+directions in test function 3 to be non-orthogonal.
+
+.TP
+.B \-dt2mix\fR <\fImixing parameter\fR>
+Specifies the mixing parameter a in test function 3.
+
+.TP
+.B \-gaussmix\fR <\fIn\fR> <\fID_1\fR> <\fIa_1\fR> ... 
+         <\fID_n\fR> <\fIa_n\fR> 
+
+Specifies all the parameters of a Gaussian-mixture-model test function. The test function
+is a mixture of n Gaussian components with diffusion tensors D_1, ..., D_n and mixing
+parameters a_1, ..., a_n, where
+
+D_i = [D_ixx, D_ixy, D_ixz]
+
+      [D_ixy, D_iyy, D_iyz]
+
+      [D_ixz, D_iyz, D_izz]
+
+On the command line, each D_i must be specified with all six components in the following
+order: D_ixx, D_ixy, D_ixz, D_iyy, D_iyz, D_izz.
+
+.TP
+.B \-rotation\fR <\fIrotation index\fR>
+Specifies a random rotation, drawn from a uniform distribution of rotations, of the test
+function. The same index always ensures the same rotation.
+
+.TP
+Options relating to Monte-Carlo simulations
+
+.TP
+.B \-walkers\fR <\fInumber of spins\fR>
+Specifies number of spins executing random walker. more = better statistics  by increased
+execution time. 10000 is typical.
+
+.TP
+.B \-tmax\fR <\fItimesteps\fR>
+number of updates performed during a simulation. The more updates the finer time is
+sliced during the simulation. All averages displacemnts are automatically scaled
+appropriately. More timesteps = longer execution but there should be enough to give good
+averaging during gradient blocks etc. typical value is 100000.
+
+.TP
+.B \-initial\fR <\fIuniform | spike \fR>
+Initial configuration of spins on substrate. uniform indicates even distribution  accross
+the substrate, spike initiales all spins at the centre of the substrate.
+
+.TP
+The following three options should all be specified together.
+
+.TP
+.B \-G\fR <\fIgradient strength \fR>
+Gradient strength in Tm-1
+
+.TP
+.B \-del\fR <\fIblock duration\fR>
+specifies the length of gradient blocks in teh PGSE sequence in seconds.
+
+.TP
+.B \-DEL\fR <\fItime between starts of gradient blocks\fR>
+specifies the gradient pulse interval in seconds.
+
+.TP
+.B \-diffusivity\fR <\fIDiffusivity\fr>
+specifies the value of the free-water diffusion constant used to callibrate step lengths
+for spin excursions. default is 2 x 10^{-9} m^2s^{-1}.
+
+ 
+
+.TP
+.B \-geometry\fR <\fI cylinder | crossing | cell-iso | cell-striped | cell-perc \fR>
+specifies substrate geometry. In addtion to previous, cellular-lattice geometries,
+substrates can	contain parallel or crossing cylinders. specifying "cylinder" will cause
+the substrate to contain cylinders parallel to the the z-axis. the -packing option
+sepcifies how they are arranged. specifying "crossing" arranges crossing cylinders, with
+one principle direction parallel to the z-axeis and a nother parallel to the x-axis.
+cylinders are arranged in laminar sheets with directions alternating in the y-direction.
+
+Other options specify lattices of cubic cells with cell walls or missing cells walls in
+specific configurations. cell-iso is a block of cubes, all having cell-walls, and hence
+no directional anisotropy. cell-striped has lanes of empty space parallel to the y-axis
+of the substrate and hence introduces a preferred direction. cell-perc is a lattice in
+which cells have cell walls or not with a fixed probability (p_perc). This introduces
+dirorder to a lattice.
+
+.TP
+-packing <SQUARE | HEX> specifies how parallel cylinders are arranged. SQUARE or
+HEXagonal packing. Cylinders should not overlap, but abutting cylinders are supported.
+
+.TP
+-cylinderrad <radius> cylinder radius in meters. cylinder radius should be no more than
+separation/2.
+
+.TP
+-cylindersep <separation> cylinder separation in meters
+
+.TP
+.B \-latticesize\fR <\fInumber of cells on an edge of a cubic lattice\fR>
+specifies number of cells on a lattice default is 20.
+
+.TP
+.B \-cellsize\fR <\fIlinear size of edge cubic cell\fR>
+specifies the size of each cubic cell in meters.
+
+.TP
+.B \-stripethickness\fR <\fInumber of cells>
+specifies number of cells wide stripes on a striped lattice are. ignored on other
+lattices. default is 1.
+
+.TP
+.B \-pperc\fR <\fIpercolation probability\fR>
+specifies the percolation probability. i.e. the probability that a given lattice site has
+cell-walls on a disordered lattice. ignored on other lattices. default is 0.5
+
+.TP
+.B \-p\fR <\fIbarrier permeability probability\fR>
+specifies the probability that a spin steps through a barrier to its motion rather than
+being elastically reflected. p=0 means that barriers are completely impermeable, p=1
+means that barriers are completely permeable and diffusion is free regardless of
+substrate. Intermediate cases allow directionality of sunstrate to be "softened",
+allowing exchange between constrained and unconstrained populations.
+
+.B \-separateruns\fR
+specifies that each voxel synthesised should be from a separate simulation. By default,
+this is not set. This is useful if generating a small number of voxels and insituations
+in which successive voxels have different substrates. If you simply want to add noise to
+a single voxel, then do not use this option.
+
+.TP
+Other options for data synthesis experiments:
+
+.TP
+.B \-noisetype\fR [\fIrician|gaussian\fR]
+Specifies the noise model.  The default is Rician, can also specify Gaussian.
+
+.TP
+.B \-snr\fR <\fIS\fR>
+Specifies the signal-to-noise ratio of the non-diffusion-weighted measurements to use in
+simulations. The program uses an additive isotropic complex Gaussian noise model. The
+noisy synthetic measurement at q is |F(q) + c|, where F is the Fourier transform of the
+test function and the real and imaginary parts of the noise term c follow independent
+identically distributed Gaussians with zero mean and standard deviation is F(0)/S. The
+default is infinite SNR (no noise).
+
+.TP
+.B \-seed\fR <\fIseed\fR>
+Specifies the random seed to use for noise generation in simulation trials.
+
+.TP
+Options relating to bootstrapping:
+
+.TP
+.B \-bootstrap\fR <\fIR\fR>
+Tells the program to simulate a bootstrapping experiment with R repeats rather than using
+independent noise in every trial.
+
+.TP
+.B \-bsdatafiles\fR <\fIfile1\fR \fIfile2\fR...>
+Specifies files containing raw data for bootstrapping. This option implicitly sets
+\fB\-bootstrap\fR, so it is not necessary to specify the latter if you use this option. A
+voxel is read from each file and then a fixed number of bootstrap samples are generated
+as specified by the \fB\-voxels\fR option. The default data type of the data is double,
+use the \fB\-inputdatatype\fR if you need to change this.
+
+.TP
+.B \-voxels\fR <\fIV\fR>
+Output \fIV\fR voxels of synthetic data. If a single test function is specified, then
+this option specifies the number of voxels produced from the test function. If
+bootstrapping, then this option specifies how many bootstrap samples to generate for each
+voxel of data in the input files. For data synthesis from an input model, such as
+tensors, one voxel is produced per input test function and this option is ignored.
+
+.TP 
+.B \-wildbsmodel\fR <\fIbsmodel\fR>
+Specified the model to fit to the input data, for wild bootstrapping. Note that this is
+different to the input model - the \fIbsmodel\fR is used internally to generate new data,
+while the input model specifies what kind of test function parameters are being read from
+the file. Currently, only "dt" is supported.
+
+.TP
+IO options:
+
+.TP
+.B \-inputmodel\fR <\fImodel type\fR>
+Tells the program to use input data to specify the test function in each voxel and
+specifies the type of model in the input data. Possible model types are: "dt"
+(diffusion-tensor data), "twotensor" (two-tensor data), "threetensor" (three-tensor
+data), "multitensor" (multitensor data) and "ballstick" (ball and stick partial volume
+model).
+
+.TP
+.B \-inputfile\fR <\fIinput filename\fR>
+See modelfit.1.
+
+.TP
+.B \-inputdatatype\fR <\fIdata type of input\fR>
+See modelfit.1. The default is "double".
+
+.TP
+Options for specifying the imaging sequence:
+
+.TP
+.B \-schemefile\fR <\fIScheme file name\fR>
+See modelfit(1).
+
+.TP
+.B \-fixedmodq\fR <\fIM\fR> <\fIN\fR> <\fIQ\fR> <\fItau\fR>
+See modelfit(1).
+
+.TP
+.B \-tau\fR <\fItau\fR>
+See modelfit(1).
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1)
+
+.SH BUGS

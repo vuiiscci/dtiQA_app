@@ -1,0 +1,97 @@
+.\" $Id$
+
+.TH tractstats 1 
+
+.SH NAME
+tractstats \- Computes statistics from streamline tracts.
+
+.SH SYNOPSIS
+.B tractstats [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+This program computes statistics from streamline tracts, either using the tracts
+themselves or using the values of a scalar image along the streamline.
+
+.SH TRACT SCALAR STATISTICS
+
+Tract scalar statistics are computed by evaluating a scalar image along the length of the
+streamline, and returning some function of the scalar values. The scalar image should be
+defined in the same space as the streamlines.
+
+Some definitions
+
+  l - the length of the streamline.
+
+  S(T) - a vector of scalar values computed by evaluating the scalar image at each point
+  in T.
+
+  S(T) - a vector of scalar values computed by evaluating the scalar image at each point in T.
+
+The tract statistic may be either the mean, sum, minimum, maximum, median, or variance of
+S(T), the values at each point along the streamline. The option "meanvar" returns both
+the mean and variance.
+
+Interpolation in the context of this program means linearly interpolating the image data.
+The image intensity is evaluated at each point in T.
+
+The assumption here is that the points on T are approximately evenly sampled. If T was
+defined using a fixed step size algorithm (\fB-interpolated\fR passed to \fBtrack\fR)
+then the distance between points will be equal, which is optimum for estimating the mean
+image value along T. If the step size is variable, for example in FACT, then the points
+on T are not evenly sampled, which introduces a bias. Resampling to a smaller step size
+in \fBprocstreamlines\fR will reduce this bias (which may be small to begin with).
+
+.SH NON IMAGE-BASED STATISTICS
+
+Non image-based statistics use information embedded in the streamlines themselves.
+Currently, this includes "length", the path length along the streamline, and
+"enspointsep", the euclidean distance between the streamline end points.
+
+.SH OUTPUT
+
+The output is the tract statistic for each streamline sent to the image, in the order in
+which they are read from the input.
+
+.SH EXAMPLES
+
+Track in an ROI and get the mean FA along each tract.
+
+  cat tracts.Bfloat | tractstats -tractstat mean -interpolate -scalarfile fa.hdr > tractMeanFA.Bdouble 
+
+Get the minimum mean diffusivity along the tracts 
+
+  cat tracts.Bfloat | tractstats -tractstat min -interpolate -scalarfile md.hdr > tractMinMD.Bdouble
+
+.SH OPTIONS
+
+.TP
+.B \-scalarfile\fR <\fIfile\fR>
+Path to an image containing the scalar values. The image should be defined in the same
+physical space as the streamlines.
+
+.TP
+.B \-header\fR <\fIhdr\fR>
+Used to define image space when a scalar file is not used, eg when the tractstat is "length".
+
+
+.TP
+
+.B \-interpolate\fR
+Use tri-linear interpolation to find the image value at each point on the streamline. If
+this  is not specified, the default behaviour is to use nearest-neighbour interpolation.
+
+.TP
+.B \-tractstat\fR <\fIstat\fR>
+One of "none", "mean", "min", "max", "sum", "median", "var", "meanvar", "length",
+"endpointsep".	All statistics except "meanvar" and "none" produce one value per
+streamline. "meanvar" produces [mean, var] for each streamline, and "none" outputs the
+value of the scalar image at each point along the streamline.
+
+.SH AUTHORS
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+tractstatimage(1), track(1), procstreamlines(1)
+
+.SH BUGS

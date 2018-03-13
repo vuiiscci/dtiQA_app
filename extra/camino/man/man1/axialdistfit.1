@@ -1,0 +1,68 @@
+.\" $Id: axialdistfit.1,v 1.3 2006/04/21 12:08:11 ucacmgh Exp $
+
+.TH axialdistfit 1
+
+.SH NAME
+axialdistfit \- Fits an axial PDF to sets of axes.
+
+.SH SYNOPSIS
+.B axialdistfit\fR -pdf <\fIpdftype\fR> [-outputpicoformat] [-evecs
+<\fItheta_1\fR \fIphi_1\fR \fItheta_2\fR \fIphi_2\fR \fItheta_3\fR \fIphi_3\fR>] 
+[-vectorspervoxel <num>] [-bgmask <mask>]
+
+.SH DESCRIPTION
+Fits an axial distribution to some vector data. The output is the parameters of the
+Bingham, Watson, or ACG distribution fitted to the data. Either the concentration
+parameters alone, or the complete PDF in the format of \fBpicopdfs\fR (see picopdfs(1))
+may be outputted.
+
+The input data should be cartesian vectors in raw binary format: [x y z x y z...x y z].
+
+.SH EXAMPLES
+
+Fit the concentration parameters of the Bingham distribution to a set of axes in the file
+test/axes.Bdouble, and send the concentration parameters to stdout as text
+
+axialdistfit < test/axes.Bdouble | double2txt
+
+Fit the parameters and output the eigenvectors of the PDF as well as the concentration.
+
+axialdistfit -outputpicoformat < test/axes.Bdouble > picopdf.Bdouble
+
+.SH OPTIONS
+
+.TP
+.B \-pdf\fR <\fIbingham\fR | \fIwatson\fR | \fIacg\fR>
+Specifies the PDF to fit to the data. Default is Bingham.
+
+.TP
+.B \-outputpicoformat
+Output the entire PICo PDF, including the eigenvectors of the distribution. See
+picopdfs(1).
+
+.TP
+.B \-evecs\fR <\fItheta_1\fR \fIphi_1\fR \fItheta_2\fR \fIphi_2\fR \fItheta_3\fR \fIphi_3\fR> 
+When specified with \fB-outputpicoformat\fR, outputs the specified eigenvectors instead
+of the eigenvectors of the scatter matrix of the samples.
+
+.TP
+.B \-vectorspervoxel\fR <\fInum\fR> 
+If this is specified, the program fits the axial distribution to blocks of \fInum\fR
+vectors.  By default, all the vectors in the input are considered to be a single unit.
+
+.TP
+.B \-bgmask\fR <\fIMask file\fR>
+A binary brain / background mask. The mask file contains zero in background voxels and non-zero in
+foreground. The mask may be a NIfTI image or in raw format, if raw it is assumed to be of type "short".
+
+.TP
+.B \-maskdatatype\fR <\fIchar|short|int|long|float|double\fR>
+Specifies the type of the mask file; must be big-endian byte ordering. Ignored for NIfTI masks.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+picopdfs(1)
+
+.SH BUGS

@@ -1,0 +1,106 @@
+.\" $Id$
+
+.TH vtkstreamlines 1
+
+.SH NAME
+vtkstreamlines \- Convert streamlines to VTK
+
+.SH SYNOPSIS
+.B vtkstreamlines [\fIoptions\fR]
+
+.SH DESCRIPTION
+
+Converts raw or voxel format streamlines to VTK polydata. These can be loaded into
+Paraview or other programs that read VTK data. Scalar data can be associated with the
+streamlines, this can be used to scale or colour the data within VTK.
+
+The options for scalar data are:
+
+  \fBNo scalars\fR - the default.
+
+  \fBColour by orientation\fR - colour the streamline points by local orientation.
+
+  \fBSeed ROI\fR - the scalar value for each point on the streamline is the ROI index of its seed point.
+
+  \fBtarget ROI\fR - the scalar value for each point on the streamline is the index of the first target ROI 
+   that it intersects. Each segment (either side of the seed) is treated separately, unless one segment
+   intersects a target and the other does not, in which case the entire streamline has the scalar of the
+   intersected target.
+
+  \fBCustom scalars\fR - pass any Analyze image that is in the same physical space as the tracts. Each point
+   of the streamline has the scalar value from the corresponding point in the image.
+
+With the exception of orientation RGB encoding, the mapping of scalars to colours is
+handled by a VTK lookup table, which is provided at run time. Streamlines coloured by
+orientation have 24-bit RGB scalars, which are interpreted directly as colours.
+
+Input data must be raw binary tracts (the output of \fBtrack\fR and
+\fBprocstreamlines\fR). These tracts are described in the same physical space as the
+scalar image passed to this program.
+
+.SH EXAMPLES
+
+Produce streamlines with no scalars.
+
+  vtkstreamlines < streamlines.Bfloat > streamlines.vtk
+
+
+Encode the local orientation of the streamline as an RGB colour scalar.
+
+  vtkstreamlines -colourorient < streamlines.Bfloat > streamlines_rgborient.vtk
+
+
+Use the ROI index of the seed point as the scalar. This produces one colour per seed ROI
+
+  vtkstreamlines -seedfile seeds.nii < streamlines.Bfloat > streamlines_seed.vtk
+
+
+Use the ROI index of the target as the scalar. This produces one colour per target ROI.
+Streamlines that do not intersect any target have zero scalars.
+
+  vtkstreamlines -targetfile targets.nii < streamlines.Bfloat > streamlines_target.vtk
+
+
+Use the local fractional anisotropy as the scalar for each point.
+
+ vtkstreamlines -scalarfile fa.nii.gz < streamlines.Bfloat > streamlines_fa.vtk
+
+.SH OPTIONS
+
+.TP
+.B \-colourorient
+Each point on the streamline is coloured by the local orientation. The colour coding
+scheme is the same as described in pdview(1).
+
+.TP
+.B \-scalarfile
+An image that is in the same physical space as the tracts. Each point of the streamline 
+has the scalar value from the corresponding point in the image.
+
+.TP
+.B \-interpolatescalars, -interpolate
+With this option, the scalar value at each point on the streamline is calculated by
+trilinear  interpolation. By default, nearest-neighbour interpolation is used. Smoothness
+of the scalar values may be increased by using this option and by running the streamlines
+through \fBprocstreamlines\fR with resampling enabled.
+
+.TP
+.B \-seedfile
+Seed ROI used to generate the tracts, as defined in track(1).
+
+.TP
+.B \-targetfile
+An image containing integer-valued target regions, as defined in track(1). 
+
+.TP
+.B \-voxeldims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The x, y, and z dimension of each voxel, in millimetres. Not required if any image file
+is used or a header is passed with \fB-header\fR.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+track(1), procstreamlines(1), pdview(1)
+
+.SH CAVEATS

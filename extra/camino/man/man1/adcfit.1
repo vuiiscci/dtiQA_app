@@ -1,0 +1,49 @@
+.\" $Id: adcfit.1,v 1.2 2006/04/20 12:54:32 ucacdxa Exp $
+
+.TH adcfit 1
+
+.SH NAME
+adcfit \- Fits the apparent diffusion coefficient to diffusion MRI measurements.
+
+.SH SYNOPSIS
+.B adcfit
+<data file> <scheme file>
+
+.SH DESCRIPTION
+Reads diffusion MRI data, acquired using the acquisition scheme detailed in the scheme
+file, from the data file. The data file stores the diffusion MRI data in voxel order with
+the measurements stored as big-endian four-byte floats and ordered as in the scheme file.
+See modelfit(1) and camino(1) for the format of the data file and scheme file. The
+program fits the apparent diffusion coefficient to the measurements in each voxel and
+outputs the results, in voxel order and as big-endian eight-byte doubles, to the standard
+output. The program outputs three values in each voxel: [exit code, ln(S(0)), ADC]. An
+exit code of zero indicates no problems. For a list of other exit codes, see modelfit(1).
+The value of S(0) is an estimate of the signal at q=0.
+
+This program is a simple interface to the program modelfit. The modelfit program provides
+more options for fitting the diffusion coefficient or tensor.
+
+If the first command line argument is a hyphen (i.e. "-") the program reads data from the
+standard input.
+
+.SH EXAMPLES
+Fit the apparent diffusion coefficient to the data in SubjectA.Bfloat using linear
+regression to the log measurements:
+
+adcfit SubjectA.Bfloat A.scheme > ADC_A.Bdouble
+
+Equivalently:
+
+cat SubjectA.Bfloat | adcfit - A.scheme > ADC_A.Bdouble
+
+or
+
+modelfit -inversion -1 -schemefile A.scheme < SubjectA.Bfloat > ADC_A.Bdouble
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+modelfit(1), dtfit(1), twotenfit(1), threetenfit(1), fa(1), trd(1), shfit(1), shanis(1)
+
+.SH BUGS

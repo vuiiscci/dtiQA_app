@@ -1,0 +1,85 @@
+.\" $Id: sfkurtosis.1,v 1.2 2006/07/24 15:53:22 ucacdxa Exp $
+
+.TH "sfkurtosis" 1
+
+.SH NAME
+sfkurtosis \- Computes an index of kurtosis of spherical functions.
+
+.SH SYNOPSIS
+.B sfkurtosis -inputmodel <sh|rbf|maxent>
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+Computes the kurtosis of any input spherical function.	The kurtosis of a function f is
+the fourth root of int(f(x) - F)^4/int(f^4(x)), where F = \int(f(x)) and the integrals
+are all over the unit sphere, normalized by the anisotropy of f (see sfanis(1)). The
+program approximates the integrals by summing over a set of around 8000 points evenly
+distributed on the sphere. To decrease computation time, the size of the point set can be
+reduced using the -pointset option.
+
+.SH EXAMPLES
+
+Here are some examples using synthetic data.
+
+Create a synthetic data set:
+
+datasynth -testfunc 3 -snr 16 -voxels 4 -schemefile test/bmx7.scheme > T3_BMX7.Bfloat
+
+
+Fit the spherical harmonics with maximum order 2 and compute the kurtosis:
+
+shfit -order 2 -schemefile test/bmx7.scheme < T3_BMX7.Bfloat | sfkurtosis -inputmodel sh
+-order 2 | double2txt
+
+ 1.150778E00
+ 1.151699E00
+ 1.152421E00
+ 1.138931E00
+
+Try with maximum order 4: shfit -order 4 -schemefile test/bmx7.scheme < T3_BMX7.Bfloat |
+sfkurtosis -inputmodel sh -order 4 | double2txt
+
+ 1.156047E00
+ 1.176902E00
+ 1.202380E00
+ 1.149478E00
+
+Repeat using PASMRI: mesd -filter PAS 1.4 -schemefile test/bmx7.scheme < T3_BMX7.Bfloat |
+sfkurtosis -inputmodel maxent -filter PAS 1.4 -mepointset 54 | double2txt 9.980777E-01
+9.980698E-01 9.905318E-01 9.991480E-01
+
+.SH OPTIONS
+.TP
+.B \-inputmodel\fR <\fIsh|rbf|maxent|dt\fR>
+Tells the program what type of functions are input.  Currently supported options are:
+
+sh - Spherical harmonic series. (Must specify -order.)
+
+maxent - Maximum entropy representations output by mesd. (Must specify -filter and
+-mepointset.)
+
+rbf - Sums of radial basis functions. (Must specify rbf parameters, eg -rbfsigma, and
+-rbfpointset.)
+
+.TP
+.B \-pointset\fR <\f0|1|2|3|4|5|6|7\fR>
+Choose the point set used for the numerical integration.  The point sets have sizes:
+
+ 0 - 1082
+ 1 - 1922
+ 2 - 4322
+ 3 - 8672
+ 4 - 15872
+ 5 - 32672
+ 6 - 72032
+ 7 - 78032
+
+The default is point set 3.
+
+.SH "SEE ALSO"
+fa(1), shfit(1), qballmx(1), mesd(1), sfanis(1), sfskewness(1)
+
+.SH BUGS
+
+.SH AUTHOR
+Danny Alexander <camino@cs.ucl.ac.uk>

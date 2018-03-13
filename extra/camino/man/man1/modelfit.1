@@ -1,0 +1,511 @@
+.\" $Id: modelfit.1,v 1.13 2006/05/19 15:15:24 ucacdxa Exp $
+
+.TH "modelfit" 1
+.SH NAME
+modelfit \- Fits models of the spin-displacement density to diffusion MRI measurements.
+
+.SH SYNOPSIS
+.B modelfit
+[\fIoptions\fR]
+
+.SH DESCRIPTION
+
+modelfit is an interface to various model fitting routines for diffusion MRI data that
+fit models of the spin-displacement density function. In particular, modelfit will fit
+the diffusion tensor to a set of measurements as well as various other models including
+two or three-tensor models. The program can read input data from a file or can generate
+synthetic data using various test functions for testing and simulations.
+
+The program sends its output to the standard output by default. The input data must be in
+voxel order.
+
+.SH EXAMPLES
+
+Fit the diffusion tensor to a data file SubjectA.Bfloat using linear regression to the
+log measurements (see Options, -inversion):
+
+  modelfit -inputfile SubjectA.Bfloat -model ldt -schemefile A.scheme > DiffTenA.Bdouble
+
+
+The above command is completely equivalent to:
+
+  dtfit SubjectA.Bfloat A.scheme > /tmp/DiffTenA.Bdouble
+
+Fit two cylindrically symmetric tensors to data file SubjectA.Bfloat with starting point 
+determined from the single tensor fit to the log measurements (see Options, --model):
+
+  modelfit -inputfile SubjectA.Bfloat -model cylcyl ldt -schemefile A.scheme \\ 
+  > TwoTensorCSymA.Bdouble 
+
+The above command is completely equivalent to:
+
+  twotenfit SubjectA.Bfloat A.scheme -cylsym > /tmp/DiffTenA.Bdouble 
+
+Run a simulation experiment on data synthesized from standard test function 1, which is a 
+Gaussian displacement density (i.e., the single diffusion-tensor model) with diffusion 
+tensor diag(17, 2, 2)*10^{-10} m^2 s^{-1}:
+
+  modelfit -testfunc 1 -model ldt -snr 16 -voxels 10000 -schemefile A.scheme
+
+This simulation runs 10000 trials and reconstructs the tensor by linear regression to the 
+log measurements. Independent noise is added in each trial so that the signal to noise ratio
+with no diffusion weighting is 16. The program uses the acquisition scheme specified in the
+file N.scheme (see Options, -schemefile). The command above is equivalent to the pipeline:
+
+  datasynth -testfunc 1 -snr 16 -voxels 10000 -schemefile A.scheme | modelfit -model ldt 1 \\
+  -schemefile A.scheme 
+
+Run a similar experiment fitting two positive definite tensors to data synthesized from a 
+two-tensor model with diffusion tensors diag(16, 7, 4)*10^{-10} m^2 s^{-1} and 
+diag(3, 18, 9)*10^{-10} m^2 s^{-1} mixed in proportion 6:4.
+
+  modelfit -gaussmix 2 16E-10 0 0 7E-10 0 4E-10 0.6 3E-10 0 0 18E-10 0 9E-10 0.4 -model \\
+  pospos ldt -snr 16 -voxels 10000 -schemefile A.scheme 
+
+
+Fit multi-compartment models (see tutorial White Matter Analytic Models) to a data file 
+SubjectA.Bfloat using non linear regression to the log measurements:
+
+  modelfit -inputfile SubjectA.Bfloat -inputdatatype float -fitmodel ZEPPELINCYLINDERDOT \\ 
+  -fitalgorithm LM -schemefile A.scheme -voxels 1 -outputfile ZCD.Bdouble 
+
+To perform multiple runs of the fitting:
+
+  modelfit -inputfile SubjectA.Bfloat -inputdatatype float -fitmodel ZEPPELINCYLINDERDOT \\ 
+  -fitalgorithm MULTIRUNLM -samples 1000 -schemefile A.scheme -voxels 1 -noisemodel \\ 
+  offGauss -sigma 0.0333 -outputfile ZCDmulti.Bfloat 
+
+To introduce a specific starting point, use the flag "startpoint", which would make the fitting 
+procedure faster. First you define how many compartments the model you want to fit has by adding 
+"compartment" after the startpoint and the number of compartments next to it, then you define the 
+intra-axonal model and its parameters, then the extra-axonal with its parameters and then the third
+compartment with its parameters. The following example uses cylinders with gamma distributed radii 
+with a cylindrically symetric tensor and a third compartment of astrocyliders:
+
+  modelfit -startpoint compartment 3 gammadistribradiicylinders 0.4 1.8 3E-6 6E-10 1.5 1.5 \\
+  ZEPPELIN 0.2 6E-10 1.5 1.5 1E-10 Astrocylinders 6E-10 2E-6 -inputfile SubjectA.Bfloat \\ 
+  -inputdatatype float -fitmodel ZEPPELINGDRCYLINDERSASTROCYLINDERS -fitalgorithm LM \\
+  -schemefile A.scheme -voxels 1 -outputfile ZGAc.Bfloat 
+
+You can generate synthetic data with these models using the parameter estimates from the model 
+fitting. Here is an example using the ZeppelinCylinderDot model:
+
+  datasynth -synthmodel compartment 3 CYLINDERGPD 0.345 8.289E-10 1.293 -4.97 4.3E-6 \\
+  zeppelin 0.331 8.289E-9 1.293 -4.97 3.615E-10 Dot -schemefile 59.scheme -voxels 1 \\ 
+  -outputfile ZCD.Bfloat
+
+
+.SH OPTIONS
+
+modelfit processes options in command line order.
+
+.TP 
+
+\fB \-argfile\fR <\fIfilename\fR> Rather than typing all arguments on the command
+line, you can put them all into a text file and use the single command line argument
+-argfile. The program then reads all arguments from the argfile. The arguments in the
+argfile are added to the end of the list of command line arguments, and should be listed 
+on a single line as they would be typed on the command line.
+
+
+.TP
+
+.B \-model\fR <\fImodel\fR>
+Specifies the model to be fit to the data. This replaces the numerical indices that used 
+to be specified with \fB\-inversion\fR.
+
+.B Single-tensor models
+
+  inversion    model 
+  
+  -2   restore 
+  1    ldt, dt  (default)	 
+  2    nldt_pos (nonlinear optimization, constrained to be positive semi-definite)
+  4    nldt     (unconstrained nonlinear optimization)	
+  7    ldt_wtd  (weighted linear)
+
+.B Two-tensor models
+
+Two tensor models are specified in two parts: <two tensor model> <single tensor model> 
+in the same manner as you would specify two digits with \fB\-inversion\fR, for example
+"-model pospos ldt" is equivalent to "-inversion 31". The single tensor model is used to
+initialize the two-tensor solution and as a fallback if the two-tensor fitting fails. The 
+model names refer to the constraints on the diffusion tensors, which are
+
+  pos - tensors must be positive, ie they cannot have negative eigenvalues
+
+  cyl - tensors must be positive and also cylindrically symmetric, that is the second
+        and third eigenvalues must be equal
+
+  _eq - enforces that the mixing parameter of the two compartments is 0.5. 
+
+
+  inversion model 
+
+  1?   cylcyl 
+  2?   cylcyl_eq  
+  3?   pospos 
+  4?   pospos_eq 
+  5?   poscyl
+  6?   poscyl_eq
+
+.B Three-tensor models
+Three tensor models are specified in two parts: <three tensor model> <single tensor model>.
+
+  inversion model 
+
+  21?   cylcylcyl 
+  22?   cylcylcyl_eq  
+  23?   pospospos 
+  24?   pospospos_eq 
+  25?   posposcyl 
+  26?   posposcyl_eq 
+  27?   poscylcyl 
+  28?   poscylcyl_eq
+
+.B Other models
+
+  inversion    model 
+  -1    adc 
+  -3    ball_stick 
+
+
+.TP \fB \-fitmodel\fR <\fImodel\fR> Specifies a two- and three-compartment models 
+(see web tutorial on White Matter Analytic Models). 
+
+
+.TP \fB\-fitalgorithm\fR <\fIfitting algorithm\fR> Specifies a single or mutliple fitting of the
+multi-compartment model: "LM", for using the Levenberg-Marquardt algorithm for a single
+run. "MULTIRUNLM" for multiple runs, using the optional flag "samples" to specify the
+number of multiruns (with a default of 100, otherwise).
+
+ inversion    model
+        -1    adc
+        -3    ball_stick
+
+
+.TP
+
+\fB \-fitalgorithm\fR <\fIfitting algorithm\fR> Specifies a single or mutliple fitting of
+the multi-compartment model: "LM", for using the Levenberg-Marquardt algorithm for a
+single run. "MULTIRUNLM" for multiple runs, using the optional flag "samples" to specify
+the number of multiruns (with a default of 100, otherwise).
+
+.TP
+
+\fB \-noisemodel\fR <\fInoise model\fR> Specifies the type of noise in the data.
+"gaussian" - for a fitting that assumes Gaussian noise, "offgauss" - assuming offset
+Gaussian noise; "rician" - assuming Rician noise. For the flags "offgauss" and "rician"
+you need to also define a "sigma" which is the standard deviation of the noise in the
+data.
+
+.TP
+\fB \-startpoint\fR <\fIstarting point\fR> Specifies the starting values for the model.
+
+.TP
+.B \-inputfile\fR <\fIinput filename\fR>
+Name of the file from which to read the diffusion MRI data. By default, the program reads
+from the standard input.
+
+.TP
+.B \-inputdatatype\fR <\fIdata type of input\fR>
+Specifies the data type of the input file.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double". The input file must have
+BIG-ENDIAN ordering. By default, the input type is "float".
+
+.TP
+.B \-outputfile\fR <\fIoutput filename\fR>
+Redirect the output of the program to this file.  If this option is unspecified, the
+output goes to the standard output.
+
+.TP
+.B \-outliermap\fR <\fIOutlier map filename\fR>
+Specifies the name of the file to contain the outlier map generated by the RESTORE
+algorithm. See restore(1).
+
+.TP
+.B \-noisemap\fR <\fINoise map filename\fR>
+Specifies the name of the file to contain the estimated noise variance on the
+diffusion-weighted signal, generated by a weighted tensor fit. The data type of this file
+is big-endian double.
+
+.TP
+.B \-residualmap\fR <\fIfilename\fR>
+Specifies the name of the file to contain the weighted residual errors after computing a
+weighted linear tensor fit. One value is produced per measurement, in voxel order. The
+data type of this file is big-endian double. Images of the residuals for each measurement
+can be extracted with \fBshredder\fR.
+
+.TP
+.B \-sigma\fR <\fIStandard deviation of noise\fR>
+Specifies the standard deviation of the noise in the data.  Required by the RESTORE
+algorithm. See restore(1). See datastats(1) for help on how to compute sigma for specific
+data sets.
+
+.TP
+.B \-bgthresh\fR <\fIBACKGROUNDTHRESHOLD\fR>
+Sets a threshold on the average q=0 measurement to separate foreground and background.
+The program does not process background voxels, but outputs the same number of values in
+background voxels and foreground voxels. Each value is zero in background voxels apart
+from the exit code which is -1.
+
+.TP
+.B \-bgmask\fR <\fIMask file\fR>
+Provides the name of a file containing a brain /  background mask. The file can be raw 
+binary or a NIFTI image. Raw binary files must be big endian; the default data type is 
+16-bit shorts, but can be  changed using the -maskdatatype option. The program does not 
+process background voxels, but outputs the same number of values in background voxels and 
+foreground voxels. Each value is zero in background voxels apart from the exit code which 
+is -1.
+
+
+.TP
+.B \-maskdatatype\fR <\fIchar|short|int|long|float|double\fR>
+Specifies the type of the mask file; must be big-endian byte ordering.	Ignored if a NIFTI 
+mask is used.
+
+
+.TP
+.B \-csfthresh\fR <\fICSFTHRESHOLD\fR>
+Sets a threshold on the average q=0 measurement to determine which voxels are CSF. This
+program does not treat CSF voxels any different to other voxels.
+
+.TP
+.B Options for specifying the imaging sequence:
+
+.TP
+.B \-schemefile\fR <\fIScheme file name\fR>
+Specifies the scheme file for the diffusion MRI data, see camino(1).
+
+.TP
+.B \-fixedbvalue\fR <\fIM\fR> <\fIN\fR> <\fIb\fR>
+Create an imaging scheme on the fly, using M measurements at b=0 followed by N measurements at 
+the specified b-value. The value of N must be in the range 3, ..., 150 or 246. The point sets 
+with 3 up to 150 points minimize the electrostatic energy of pairs of equal and opposite points 
+on the sphere. They are computed using the method outlined by Jansons and Alexander [Inverse 
+Problems 19:1031-1046, 2003]. The point set with 246 points is an icosahedral tesselation.
+
+.TP
+.B \-tau\fR <\fItau\fR>
+Sets the diffusion time separately. This overrides the diffusion time specified in a
+scheme file or by a scheme index for both the acquisition scheme and in the data
+synthesis.
+
+.TP
+Rather than piping the output of datasynth into modelfit, modelfit can generate synthetic
+data internally. The same options as datasynth apply for specifying the test function
+used to generate synthetic data:
+
+.TP
+.B \-testfunc\fR <\fItest function index\fR>
+See datasynth(1).
+
+.TP
+.B \-lambda1\fR <\fIl_1\fR>
+See datasynth(1).
+
+.TP
+.B \-scale\fR <\fIscale factor\fR>
+See datasynth(1).
+
+.TP
+.B \-dt2rotangle\fR <\fIrotation angle (in radians)\fR>
+See datasynth(1).
+
+.TP
+.B \-dt2mix\fR <\fImixing parameter\fR>
+See datasynth(1).
+
+.TP
+.B \-gaussmix\fR <\fIn\fR> <\fID_1\fR> <\fIa_1\fR> ... 
+         <\fID_n\fR> <\fIa_n\fR> 
+See datasynth(1).
+
+.TP
+.B \-rotation\fR <\fIrotation index\fR>
+See datasynth(1).
+
+.TP
+.B \-voxels\fR <\fIT\fR>
+See datasynth(1).
+
+.TP
+.B \-snr\fR <\fIS\fR>
+See datasynth(1).
+
+.TP
+.B \-seed\fR <\fIseed\fR>
+See datasynth(1).
+
+.TP
+.B \-bootstrap\fR <\fIR\fR>
+See datasynth(1).
+
+.TP
+.B \-inputmodel\fR <\fImodel type\fR>
+See datasynth(1).
+
+
+
+.SH DEPRECATED OPTIONS
+
+.TP \fB \-inversion\fR <\fIinversion index\fR> The inversion index specifies
+the type of inversion to perform on the data. The indices are integers with the meanings
+listed below. These codes are now deprecated to allow for the addition of further model
+fitting procedures via the \fB\-model\fR option, but they are still recognized by the
+program.
+
+.B Single-tensor inversions
+
+1.  Compute the least-squares-fit diffusion tensor to the log measurements by linear
+regression.
+
+2. Compute the least-squares-fit diffusion tensor to the raw measurements by non-linear
+optimization using a Levenburg--Marquardt algorithm. The diffusion tensor is constrained
+to be positive definite by fitting its Cholesky decomposition.
+
+7. Compute the weighted least-squares-fit diffusion tensor to the log measurements by
+linear regression (see wdtfit(1)).
+
+-2. Compute the diffusion tensor using the RESTORE method.
+
+The program outputs the results voxel by voxel in the same order as the input data file.
+The output data type is big-endian double-precision (8-byte) floating point values by
+default. For single-tensor inversions, the output for each voxel contains [exitcode,
+ln(S(0)), D_xx, D_xy, D_xz, D_yy, D_yz, D_zz], where S(0) is the estimate of the
+measurement at q=0, the fitted diffusion tensor is D = [D_xx, D_xy, D_xz]  [D_xy, D_yy,
+D_yz]  [D_xz, D_yz, D_zz]
+
+and the following exit codes can arise:
+
+-100. Bad data. Inversion could not be performed and all output values are zero.
+
+-1. Background voxel. The voxel was classified as background using a threshold on the
+mean A^\star(0) measurements, see Options, -bgthresh.
+
+0. No problems.
+
+2. An iterative fitting algorithm (linear or non-linear) failed to converge.
+
+6. Bad data, but the inversion could be performed by substituting a different value for
+one or more measurements. Usually this means that a measurement was zero or negative so
+it has no logarithm. For a linear model, this measurement is ignored. Non-linear fitters 
+use the negative value. 
+
+
+.B Two-tensor inversions
+All two-tensor inversions use a Levenburg--Marquardt algorithm to fit a mixture of two
+Gaussian densities to the data. The starting point comes from a single-tensor fit to the
+data. The indices for all two-tensor inversions are two digit integers. The first digit
+specifies the type of two-tensor model. The second digit comes from the list of single
+tensor inversions above and specifies which single tensor fit to use to define the
+starting point for the optimization.
+
+To determine the starting point, suppose the single tensor fit has eigenvectors e_1, e_2
+and e_3 with eigenvalues l_1 >= l_2 >= l_3, respectively. We initialize one component of
+the two-tensor model, D_1, to have eigenvectors e_1, e_2 and e_3 with eigenvalues (2 l_1
+- l_3), l_3 and l_3, respectively. The second component D_2 initially has eigenvectors
+e_2, e_1 and e_3 with eigenvalues (2 l_2 - l_3, l_3, l_3, respectively. This ensures that
+the initial D_1 and D_2 have cylindrical symmetry, principal eigenvectors along e_1 and
+e_2, respectively, and that the average eigenvalue along each e_i is l_i. The mixing
+parameter is initially 0.5.
+
+In what follws, the question mark "?" denotes a wildcard in the output.
+
+1?. Both diffusion tensors are constrained to be cylindrically symmetric, i.e., each
+tensor has two equal eigenvalues. An index of 11 means that the program fits two
+cylindrically symmetric diffusion tensors to the data with the starting point determined
+using the least-squares-fit diffusion tensor to the log measurements (inversion 1). An
+index of 12 means that the starting point comes from the diffusion tensor fit to the raw
+measurements by non-linear optimization (inversion 2).
+
+2?. As 1?, but the mixing parameter is fixed at 0.5.
+
+3?. Both diffusion tensors are constrained to be positive definite.
+
+4?. As 3?, but the mixing parameter is fixed at 0.5.
+
+5?. One diffusion tensor is cylindrically symmetric, the other is positive definite.
+
+6?. As 5?, but the mixing parameter is fixed at 0.5.
+
+For two-tensor inversions, the output for each voxel contains [exitcode, ln(S(0)), N,
+a_1, D_1xx, D_1xy, D_1xz, D_1yy, D_1yz, D_1zz, a_2, D_2xx, D_2xy, D_2xz, D_2yy, D_2yz,
+D_2zz], where N is the number of components (here always 2), a_1 is the mixing parameter
+for D_1 and a_2 is that for D2. This output format is consistent with the multiple-tensor
+format output by multitenfit(1). The exit codes are as in the single-tensor case.
+
+.B Three-tensor inversions
+The three-tensor inversion indices all have three digits, the first of which is a 2. The
+last digit indicates the kind of single tensor inversion used to obtain the starting
+point for the optimization that fits the three-tensor model.
+
+The starting point is three cylindrically symmetric diffusion tensors with the largest to
+smallest eigenvalues in the ratio 8:1. The mixing parameters are all equal. The trace of
+each tensor is chosen so that the average eigenvalue along each e_i is l_i.
+
+21?. All three diffusion tensors are cylindrically symmetric. For example, an index of
+211 means that the program fits three cylindrically symmetric diffusion tensors to the
+data with the starting point determined using the least-squares-fit diffusion tensor to
+the log measurements (inversion 1).
+
+22?. As 21?, but the mixing parameters are both fixed at 1/3.
+
+23?. All three diffusion tensors are constrained to be positive definite.
+
+24?. As 23?, but the mixing parameter is fixed at 1/3.
+
+25?. One diffusion tensor is cylindrically symmetric, the other two are positive
+definite.
+
+26?. As 25?, but the mixing parameter is fixed at 1/3.
+
+27?. Two diffusion tensors are cylindrically symmetric, the other one is positive
+definite.
+
+28?. As 27?, but the mixing parameter is fixed at 1/3.
+
+For three-tensor inversions, the output for each voxel contains [exitcode, ln(S(0)), N,
+a_1, D_1xx, D_1xy, D_1xz, D_1yy, D_1yz, D_1zz, a_2, D_2xx, D_2xy, D_2xz, D_2yy, D_2yz,
+D_2zz, a_3, D_3xx, D_3xy, D_3xz, D_3yy, D_3yz, D_3zz], where N is the number of
+components (here always 3), a_i is the mixing parameter for D_i. This output format is
+consistent with the multiple-tensor format output by multitenfit(1). The exit codes are
+as in the single-tensor case.
+
+.B Other inversions
+-1.  Fits the apparent diffusion coeffient on the assumption of isotropic Gaussian
+distributed displacements. The output is [exitcode, ln(S(0)), ADC].
+
+-2. Uses the RESTORE algorithm to fit a single diffusion tensor, see restore(1). Output
+is [exitcode, ln(S(0)), D_xx, D_xy, D_xz, D_yy, D_yz, D_zz] (see restore(1) for details
+of exit codes). See restore(1).
+
+-3. Fits the ball and stick partial volume model via nonlinear optimization [Behrens et
+al, MRM 50:1077-1088, (2003)]. Output is  [exitcode, ln(S(0)), d, f, x, y, z]. See
+ballstickfit(1).
+
+7. Computes the weighted least-squares-fit diffusion tensor to the log measurements by
+linear regression. See wdtfit(1).
+
+
+.B \-fixedmodq\fR <\fIM\fR> <\fIN\fR> <\fIQ\fR> <\fItau\fR>
+Specifies a spherical acquisition scheme with M measurements with q=0 and N measurements
+with |q|=Q and diffusion time tau. The N measurements with |q|=Q have unique directions.
+The program reads in the directions from the files in directory PointSets. The value of N
+must be in the range 3, ..., 150 or 246. The point sets with 3 up to 150 points minimize
+the electrostatic energy of pairs of equal and opposite points on the sphere. They are
+computed using the method outlined in Jansons and Alexander, Inverse Problems, Vol 19,
+pp. 1031--1046, 2003.. The point set with 246 points is an icosahedral tesselation.
+
+This option is deprecated and should be replaced with \fB-fixedbvalue\fR where possible.
+
+
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+dtfit(1), twotenfit(1), threetenfit(1), datasynth(1)
+
+.SH BUGS
+

@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Wrapper for modelfit, does weighted DT fit.
+# 
+# $Id$
+
+
+# Find the directory containing this script.
+SCRIPTDIR=${0%/*}
+
+if [ $# -lt 2 ]; then
+    echo "wdtfit <data file> <scheme file> [noise var map] [options]"
+    exit
+fi
+
+DATAFILE=$1
+SCHEMEFILE=$2
+
+NOISEMAPFILE=$3
+
+NOISEMAPARG=""
+
+if [ $# -gt 2 ] && [ ${NOISEMAPFILE:0:1} != "-" ]; then
+
+    NOISEMAPARG="-noisemap $NOISEMAPFILE"
+    shift 3
+
+else
+
+    shift 2
+
+fi
+
+DATAOPT="-inputfile $DATAFILE"
+if [ $DATAFILE == - ]; then
+    DATAOPT=
+fi
+
+
+exec ${SCRIPTDIR}/modelfit $* -inversion 7 -schemefile $SCHEMEFILE $DATAOPT $NOISEMAPARG
+
+
+

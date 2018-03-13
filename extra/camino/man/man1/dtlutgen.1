@@ -1,0 +1,168 @@
+.\" $Id: dtlutgen.1,v 1.13 2006/06/30 14:16:33 ucacpco Exp $
+
+.TH dtlutgen 1
+
+.SH NAME
+dtlutgen \- Generates a PICo lookup table (LUT) or tables.
+
+.SH SYNOPSIS
+.B dtlutgen 
+-[l|f]range <\fImin\fR> <\fImax\fR> -step <\fIstep\fR> -snr <\fIvalue\fR> -schemefile
+<\fIfile\fR> [\fIoptions\fR]
+
+.SH DESCRIPTION
+PICo tractogaphy requires a look-up table that maps FA of the diffusion tensor to  the
+uncertainty in fibre orientation estimate. This command is used to construct this look-up
+table. The lookup table contains the parameters of the PICo PDFs given a set of imaging
+parameters and noise conditions. For each entry in the lookup table, the generator
+synthesizes sets of MRI measurements from a Gaussian model, at the specified \fIsnr\fR,
+performs the inversion, extracts the principal directions and fits the parameters of the
+PDF (see modelfit(1)). The range of the LUT is specified by the user. For single tensor
+LUTs, the indices of the LUT are the ratios of the first and second eigenvalues L1 and L2
+to the third eigenvalue L3. For two-tensor LUTs, the tensors are always axisymmetric, and
+the indices are fractional anisotropy.
+
+Two tensor LUTs are calculated with a fixed angle between the two tensors. This is to
+allow parallelization of the LUT generation. LUTs can be calculated at fixed intervals
+over a range of angles and combined with \fBcombinetwofibreluts\fR.
+
+The lookup table is specific to the imaging scheme, inversion and SNR specified to this
+program. The units of the b-values in the scheme file should agree with those of the
+diffusion tensors used in the simulations. By default, this is SI units (diffusivity is
+in m^2 / s). You can modify the trace of the tensors with the \fB-trace\fR option. For
+example, if your b-values are in s/mm^2, a typical diffusion tensor in brain parenchyma
+will have a trace of approximately 2.1 x 10^{-3}.
+
+Three models of the PICo fibre-orientation PDF are supported. The Watson PDF has circular
+contours on the sphere and is a good model of noise-based uncertainty for cylindrically
+symmetric diffusion tensors. The Bingham PDF has elliptical contours on the sphere, and
+is more suitable for non cylindrically-symmetric tensors. The Angular Central Gaussian
+PDF also has elliptical contours, and is suitable for very noisy data with low
+concentration. We recommend the Bingham model for general use. This is the default if no
+PDF is specified.
+
+If one PDF is specified on the command line, the output of dtlutgen is a single LUT which
+is sent to stdout, or the file specified by \fB\%\-outputfile\fR. If no PDF is specified,
+the default is bingham. If multiple PDFs are required, they can be computed
+simultaneously by specifying more than one PDF on the command line. This saves time
+compared to computing the LUTs separately, because the synthetic data is only generated
+once.
+
+The output is a binary file containing a header and all the LUT entries. The header
+contains the dimensions of the LUT, the step sizes, and the number of values at each
+entry in the LUT. The header size is 80 bytes.
+
+Two-tensor LUTs are computed with a single crossing angle between the two tensors. LUTs
+with a range of crossing angles can be computed serially or in parallel and combined with
+\fBcombinetwofibreluts\fR. The LUTs are interpolated, so an angular resolution of 10
+degrees should be sufficient. With 60 measurements and an SNR of 16, our experience
+suggests that two tensor fitting is not reliable when the crossing angle is less than 45
+degrees.
+
+.SH EXAMPLES
+
+Generate a LUT for the Bingham distribution, over the range L1 / L3 = 1 to 15. This is a
+sensible default for single tensor PICo. We use the default sample size (2000) and
+inversion (1).
+
+dtlutgen -lrange 1 15 -step 0.2 -snr 16 -schemefile A.scheme >
+Ascheme_bingham_snr16_inv1.Bdouble
+
+
+Generate LUTs over a range of anisotropy, from L1 / L3 = 1 to L1 / L3 = 10. Produces luts
+for the ACG, Bingham, and Watson distribution called oneTensor_Ascheme_{acg, bingham,
+watson}_snr16_inv1.Bdouble
+
+dtlutgen -lrange 1 10 -step 0.1 -samples 5000 -snr 16 -schemefile A.scheme -inversion 1
+{-watson|-acg|-bingham} -outputroot oneTensor_Ascheme_
+
+
+Generate a two-Bingham LUT over a range of anisotropy, from FA = 0.3 to FA = 0.9. This is
+a sensible range for SNR 16, tensors with FA less than about 0.3 are not resolved
+reliably.
+
+dtlutgen -frange 0.3 0.9 -step 0.05 -samples 2000 -snr 16 -schemefile A.scheme -inversion
+22 -cross 90 > twoBingham_Ascheme_snr16_inv22_90.Bdouble
+
+.SH OPTIONS
+
+.TP
+.B \-lrange\fR <\fIlMin lMax\fR>
+Index to one-tensor LUTs. This is the ratio L1/L3 and L2 / L3. The LUT is square, with
+half the values calculated (because L2 / L3 cannot be less than L1 / L3 by definition).
+The minimum must be >= 1. For comparison, a ratio L1 / L3 = 10 with L2 / L3 = 1
+corresponds to an FA of 0.891, and L1 / L3 = 15 with L2 / L3 = 1 corresponds to an FA of
+0.929. The default range is 1 to 10.
+
+.TP
+.B \-frange\fR <\fIfMin fMax\fR>
+Index to two-tensor LUTs. This is the fractional anisotropy of the two tensors. The
+default is 0.3 to 0.94
+
+.TP
+.B \-step\fR <\fIsize\fR>
+Distance between points in the LUT. For example, if lrange is 1 to 10 and the step is
+0.1, LUT entries will be computed at L1 / L3 = 1, 1.1, 1.2 ... 10.0 and at L2 / L3 = 1.0,
+1.1 ... L1 / L3. For single tensor LUTs, the default step is 0.2, for two-tensor LUTs it
+is 0.02.
+
+.TP
+.B \-samples\fR <\fInumber\fR>
+The number of synthetic measurements to generate at each point in the LUT. The default is
+2000.
+
+.TP
+.B \-snr\fR <\fIvalue\fR>
+The signal to noise ratio of the unweighted (q = 0) measurements. This should match the
+SNR (in white matter) of the images that the LUTs are used with.
+
+.TP
+.B \-inversion\fR <\fIvalue\fR>
+Index of the inversion to use. See modelfit(1). The default is 1 (linear single tensor
+inversion).
+
+.TP
+.B \-schemefile\fR <\fIfile\fR>
+The scheme file of the images to be processed using this LUT. 
+
+.TP
+.B \-trace\fR <\fIvalue\fR>
+Trace of the diffusion tensor(s) used in the test function in the LUT generation. The
+default is 2100E-12 m^2 s^-1.
+
+.TP
+.B \-acg\fR 
+Compute a LUT for the ACG PDF. 
+
+.TP
+.B \-bingham\fR 
+Compute a LUT for the Bingham PDF. This is the default.
+
+.TP
+.B \-watson\fR 
+Compute a LUT for the Watson PDF.
+
+.TP
+.B \-outputroot\fR <\fIstring\fR>
+Prepended onto output file names if multiple luts are selected. If only one LUT is being
+computed, this option is ignored and output is sent to stdout or the file specified with
+the \fB \%\-outputfile \fR option.
+
+.SH TWO TENSOR OPTIONS
+
+.TP
+.B \-cross\fR <\fIangle\fR>
+The angle in degrees between the principal directions of the two tensors.
+
+.TP
+.B \-prop\fR <\fIf\fR>
+The mixing proportion of the two test functions G1 and G2. The synthetic signal is A(q) =
+f * G1(q) + (1-f) * G2(q). Default is 0.5.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+combinetwofibreluts(1), modelfit(1)
+
+.SH BUGS

@@ -1,0 +1,133 @@
+.\" $Id$
+
+.TH estimatesnr 1
+
+.SH NAME
+estimatesnr \- Estimates the signal to noise ratio in b=0 images.
+
+.SH SYNOPSIS
+\fBestimatesnr\fR \fB-bgmask\fR <\fImask\fR> \fB-schemefile\fR <\fIfile\fR>
+[\fB-noiseroi\fR <\fIroi\fR>]
+
+.SH DESCRIPTION
+
+This program estimates the noise variance and the signal to noise ratio in a given ROI,
+for the b=0 data for a given scan.
+
+The traditional method for estimating the noise is to sample two ROIs, one in brain white
+matter, and one in the background. Assuming that the background signal contained only
+noise, we can estimate the noise standard deviation as
+
+  sigma = sqrt(2.0 / (4.0 - PI)) * stddev(signal in background region)
+
+where the constant scaling corrects for the Rician distribution of the noise, giving us
+the standard deviation sigma of the original signal. To synthesize data with the same
+noise conditions, we would take the true signal S_0 and calculate
+
+  S = |[S_0 + N(0, sigma), N(0, sigma)]|
+
+where N(0, sigma) is a random sample drawn from normal distribution with mean 0 and
+standard deviation sigma.
+
+The two-ROI approach is only valid when the signal in the background follows the
+distribution
+
+  S_b = |[N(0, sigma), N(0, sigma)]|
+
+however, this is often not the case. Dietrich et al [JMRI 26:376-385 (2007)] showed the
+shortcomings of this approach and evaluated better ways to estimate the noise variance
+without using a background region.
+
+.SH ALTERNATIVES TO THE TWO-ROI APPROACH
+
+The first method requires two b=0 images. We call this method sigma_diff, because it uses
+the difference between the two images. If S_{i1} is the signal in voxel i, image 1, and
+S_{i2} is the signal from the same voxel in image 2, and there are N voxels in the ROI,
+then
+
+  sigma_diff = stddev(S_{11} - S_{12},...,S_{N1} - S_{N2}) / sqrt(2)
+
+The SNR is the mean signal in the ROI divided by sigma_diff, ie
+
+  mean(S_{i1} + S_{i2}) / [2.0 * sigma_diff]
+
+The second method requires multiple b=0 images, and defines sigma_mult as the standard
+deviation of the signal over the ROI, across all K b=0 images. Again, let i be a voxel
+index, then
+
+  sigma_i = stddev(S_{i1},...,S{iK}))
+
+  sigma_mult = mean(sigma_1,...,sigma_N)
+
+And finally SNR is
+
+  mean(S_{11}, S_{12},...,S_{1K}, S_{21},...,S_{NK}) / sigma_mult
+
+If there are two or more b=0 images, both snr_diff and snr_mult will both be computed.
+The more b=0 images there are, the better the estimate via sigma_mult, but sigma_diff
+only ever uses the first two b=0 images.
+
+.SH USES OF NOISE VARIANCE IN CAMINO
+
+The noise variance, or the signal to noise ratio (SNR) in white matter, is used in
+several Camino programs, such as:
+
+\fBpicopdfs\fR - the SNR is required to evaluate the uncertainty in principal directions.
+
+\fBrestore\fR - the noise standard deviation is required to do the fitting. However, the
+RESTORE method contains other parameters which have the same effect as altering the
+estimate of sigma. Thus you should consider sigma as a starting point for the RESTORE
+algorithm.
+
+\fBmbalign\fR - this program uses RESTORE, see above.
+
+.SH EXAMPLES
+
+Data exists in a voxel-ordered file, A.Bfloat. A white-matter region WM_ROI.hdr is drawn
+by hand.
+
+  estimatesnr -inputfile A.Bfloat -schemefile A.scheme -bgmask WM_ROI.hdr
+
+Now we compute the same thing, only we use BG_ROI.hdr, which is simply WM_ROI.hdr
+translated such that the non-zero voxels are all in the background region of the image.
+
+  estimatesnr -inputfile A.Bfloat -schemefile A.scheme -bgmask WM_ROI.hdr -noiseroi BG_ROI.hdr
+
+Start from data in a 4D Analyze file
+
+  analyze2voxel -inputfile data.hdr | estimatesnr -inputfile A.Bfloat -schemefile A.scheme -bgmask WM_ROI.hdr
+
+.SH OPTIONS
+.TP
+.B \-bgmask\fR <\fImask\fR> 
+Path to an image header or raw data file that contains the region of interest. This image
+should mask  out a region of interest that contains an approximately constant unweighted
+signal. Usually, we would choose a white matter structure for this purpose.
+
+.TP
+.B \-schemefile\fR <\fIfile\fR> 
+Imaging scheme for the data. The program will select the b=0 measurements for the
+computation.
+
+.TP
+.B \-noiseroi\fR <\fIroi\fR> 
+An ROI placed outside the brain, where the mean signal is zero. If this is supplied, the
+noise variance is estimated using the "two ROI" technique.
+
+.TP
+.B \-approxb0meas\fR <\fIx y z...\fR> 
+Tells the program to use the specified measurements instead of the b=0 measurements. The
+arguments following The option should be integer indices of measurements that are
+approximately directionally isotropic. For example, imagine data with no b=0
+measurements, but the first three are at b=50 s / mm^2. The program could then be called
+with the option "-approxb0meas 0 1 2". This option should only be used when signal is
+homogeneous across the selected measurements and across the ROI. This will not be the
+case for most diffusion-weighted measurements in the brain.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH SEE ALSO
+picopdfs(1), restore(1), mbalign(1), datasynth(1), addnoise(1), analyze2voxel(1)
+
+.SH BUGS

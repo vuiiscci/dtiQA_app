@@ -1,0 +1,67 @@
+.\" $Id: voxel2scanner.1,v 1.2 2005/06/15 08:42:33 ucacdxa Exp $
+
+.TH voxel2scanner 1
+
+.SH NAME
+voxel2scanner \- Converts voxel-order data to scanner-order data.
+
+.SH SYNOPSIS
+.B voxel2scanner
+-voxels <number of voxels> -components <measurements per voxel> [\fIoptions\fR]
+
+.SH DESCRIPTION
+Converts voxel-order data files, used by Camino, to scanner order. See scanner2voxel(1)
+for a description of these formats.
+
+The output data type is big endian floating points.
+
+.SH EXAMPLES
+Convert voxel-order data file VoxelOrder.Bfloat, for which the measurement volume has
+size 128x128x60 and the acquisition scheme acquires 6 measurements with b=0 and 54
+diffusion-weighted measurements, to scanner order:
+
+voxel2scanner -voxels 983040 -components 60 < VoxelOrder.Bfloat > ScannerOrder.img
+
+Equivalently:
+
+voxel2scanner -voxels 983040 -components 60 -inputfile VoxelOrder.Bfloat >
+ScannerOrder.img
+
+
+Fit the diffusion tensor to the scanner-order data in ScannerOrder.img, assuming the
+acquisition scheme is specified in A.scheme, and convert the output to scanner order:
+
+scanner2voxel -voxels 983040 -components 60 < ScannerOrder.img | dtfit - A.scheme
+-nonlinear | voxel2scanner -voxels 983040 -components 8 -inputdatatype double >
+DiffTensorA.img
+
+.SH OPTIONS
+.TP
+.B \-voxels <number of voxels>
+The number of voxels in the input data.
+
+.TP
+.B \-components <number of measurements>
+The number of measurements per voxel.
+
+.TP
+.B \-inputfile <\fIinput filename\fR>
+The name of the input file.
+
+.TP
+.B \-inputdatatype <\fIdata type of input\fR>
+Specifies the data type of the input file.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double".
+
+.TP
+.B \-outputdatatype <\fIdata type of output\fR>
+Specifies the data type of the output data.  The data type can be any of the following
+strings: "char", "short", "int", "long", "float" or "double".
+
+.SH "AUTHORS"
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+scanner2voxel(1)
+
+.SH BUGS

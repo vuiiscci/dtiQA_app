@@ -1,0 +1,12 @@
+ObjectType = Image
+NDims = 3
+BinaryData = True
+BinaryDataByteOrderMSB = False
+TransformMatrix = 1 0 0 0 1 0 0 0 1
+Offset = 0 0 0
+CenterOfRotation = 0 0 0
+AnatomicalOrientation = RPI
+ElementSpacing = 2 2 2
+DimSize = 80 32 33
+ElementType = MET_UCHAR
+ElementDataFile = torus_waypoints.img

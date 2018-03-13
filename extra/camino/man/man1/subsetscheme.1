@@ -1,0 +1,86 @@
+.\" $Id$
+
+.TH subsetscheme 1
+
+.SH NAME
+subsetscheme \- Create scheme files from a subset of directions in an existing scheme
+
+.SH SYNOPSIS
+.B subsetscheme -schemefile \fR <\fIfile\fR> \fB-subsetpoints\fR <\fIpoints\fR> 
+\fB-outputroot\fR <\fIroot\fR> [\fB-imagelist\fR <\fIlist\fB>]
+
+ 
+.SH DESCRIPTION
+
+This program takes the output of \fBsubsetpoints\fR and produces scheme files
+corresponding to the subsets. Each subset scheme file contains ALL the unweighted (q=0)
+measurements in the original scheme, as well as all measurements along the gradient
+directions in the subset.
+
+
+.SH OUTPUT
+
+Subset scheme files - the measurements in the original scheme that correspond to the
+gradient directions in the subsetpoints file are output as outputRoot_[0...N-1].scheme,
+where there are N subsets.
+
+Subset indices - the integer indices of the measurements from the full scheme that are in
+the subset, indexed from zero.
+
+Image lists - If an image list is provided with the \fB-imagelist\fR option, the subset
+image lists are produced. The image list should be one line per measurement, containing the 
+file name of the associated image volume. This can be produced from a 4D Nifti image with 
+\fBsplit4dnii\fR.
+
+
+.SH EXAMPLES
+
+Begin with an existing scheme file, A.scheme, which consists of 3 b=0 measurements and 60
+b=1000 s / mm^2 measurements spread over the sphere. The 60 diffusion-weighted
+measurements are stored in the file A.points.
+
+   subsetpoints -inputfile A.points -pointspersubset 20 20 20 -outputfile A_subsets
+
+Create scheme files for each of the subsets
+
+   subsetscheme -schemefile A.scheme -subsetpoints A_subsets -outputroot subset
+
+The files subset_[0,1,2].scheme are created, each containing the 3 b=0 measurements,
+followed by the b=1000 measurements in each subset.
+
+If the diffusion-weighted images are stored as Nifti volumes, an image list can also be
+created for the subsets. If all 63 volumes are listed in the file imagelist.txt, then the
+command
+
+    subsetscheme -schemefile A.scheme -subsetpoints A_subsets -outputroot subset -imagelist imagelist.txt
+
+will also produce subset_[0,1,2].imagelist, which contains the volumes in each subset.
+
+
+.SH OPTIONS
+
+.TP
+.B \-schemefile\fR 
+Scheme file for the complete imaging scheme. 
+
+.TP
+.B \-subsetpoints\fR 
+Output from subsetpoints containing one or more subsets of the directions in the scheme
+file.
+
+.TP
+.B \-outputroot\fR 
+Root for the output file names.
+
+.TP
+.B \-imagelist\fR 
+Image list containing file names of raw DWI images for the complete imaging scheme. These
+will  be parsed and an image list will be created for each subset.
+
+.SH "AUTHORS"
+Philip Cook <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+pointset2scheme(1), subsetpoints(1)
+
+.SH BUGS

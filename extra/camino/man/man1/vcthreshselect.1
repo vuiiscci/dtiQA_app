@@ -1,0 +1,76 @@
+.\" $Id: vcthreshselect.1,v 1.9 2005/12/12 16:04:38 ucacpco Exp $
+
+.TH "vcthreshselect" 1
+.SH NAME
+vcthreshselect \- Visualizes F-test data from voxelclassify(1).
+
+.SH SYNOPSIS
+.B vcthreshselect
+-datadims <\fIx\fR> <\fIy\fR> <\fIz\fR> -order <\fIorder\fR> [-bgthresh <\fIvalue\fR>
+-csfthresh <\fIvalue\fR> -ftest <\fIf1 f1 f3\fR>]
+
+.SH DESCRIPTION
+This program loads the raw F-test data from voxelclassify(1) and provides a preview of
+the voxel classification. Users can adjust the thresholds and update the classification
+in real time.
+
+The default plane view is axial and the user may switch to sagittal or coronal by
+clicking the buttons. Left-clicking on a voxel sets crosshairs for quick slice selection.
+For example, if the current view is axial and the current slice is 20, clicking the voxel
+(50,60) will set the reslice crosshairs to (50,60,20). Clicking sagittal then
+automatically switches to the slice (x = 50), and clicking coronal switches to the slice
+(y = 60). Right-clicking removes the crosshairs.
+
+The boxes at the bottom of the screen contain the thresholds (from left to right) for the
+order 2 model, the order 4 model, and the order 6 and above models. The scroll bars move
+the thresholds between 1E-1 and 1E-50. The text boxes also accept direct input of the
+form 1E-X (X between 1 and 50).
+
+After thresholds are changed, the update button does the model selection with the new
+thresholds. This allows multiple changes to the thresholds without recalculating the
+classification. If auto update box is selected, the voxel classification will be updated
+immediately after any change to the thresholds.
+
+The default input data type is double. The save button writes the current voxel
+classification as an int volume.
+
+.SH OPTIONS
+.TP
+.B \-datadims\fR <\fIx\fR> <\fIy\fR> <\fIz\fR>
+The dimensions of the image, in voxels.
+
+.TP
+.B \-order\fR <\fImaxOrder\fR> 
+The maximum order in the f-test data. 
+
+.TP
+.B \-bgthresh\fR <\fIminA0\fR> 
+Consider all voxels with A(0) less than minA0 to be background, regardless of the F-Test
+statistics.
+
+.TP
+.B \-csfthresh\fR <\fImaxA0\fR> 
+Consider all voxels with A(0) greater than maxA0 to be CSF (and therefore isotropic),
+regardless of the F-Test statistics.
+
+.TP
+.B \-ftest\fR <\fIf1 f2 f3\fR> 
+Specify the initial F-Test thresholds. Input must be in the range 1E-1 to 1E-50, and will
+be rounded to the nearest power of 10.
+
+.SH EXAMPLES
+
+Run voxelclassify on a 128x128x60 data set, max order 4, and view results.
+
+voxelclassify -inputfile SubjectA.Bfloat -schemefile A.scheme
+
+    -order 4 | vcthreshselect -datadims 128 128 60 -order 4 
+    -bgthresh 100 -csfthresh 3000 
+
+.SH "AUTHORS"
+Philip Cook <p.cook@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+voxelclassify(1)
+
+.SH BUGS

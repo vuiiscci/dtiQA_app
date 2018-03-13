@@ -1,0 +1,48 @@
+.\" $Id: int2txt.1,v 1.2 2006/04/20 12:54:34 ucacdxa Exp $
+
+.TH int2txt 1
+
+.SH NAME
+int2txt \- Converts big-endian binary integer data to text.
+
+.SH SYNOPSIS
+.B int2txt [\fB-linenum\fR] [\fB-components\fR <\fIN\fR>]
+
+.SH DESCRIPTION
+Reads big-endian binary integer data from the standard input and outputs each int as text
+to the standard output.
+
+.SH EXAMPLES
+
+Output as text the integers stored as binary data in test.Bint:
+
+cat test.Bint | int2txt
+
+The output has the form:
+
+  1078689792
+  0
+ -1078349151
+ -360962432
+ -1071080467
+ :
+
+.SH OPTIONS
+
+.TP
+.B \-linenum
+Print line numbers in output.
+
+.TP
+.B \-components\fR <\fIN\fR>
+Assume output is voxel data with \fIN\fR components. Output will be annotated with voxel
+number and component number.
+
+.SH AUTHORS
+Daniel Alexander <camino@cs.ucl.ac.uk>
+
+.SH "SEE ALSO"
+byte2txt(1), char2txt(1), short2txt(1), long2txt(1), double2txt(1), float2txt(1),
+shredder(1).
+
+.SH BUGS

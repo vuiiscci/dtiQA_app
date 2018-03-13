@@ -1,0 +1,21 @@
+: # auto find perl code.
+     eval 'exec perl -S $0 "$@"'
+     if 0;
+
+# Pads a string with zeros at its start to make it a specified length.
+#
+# $Id: StringZeroPad,v 1.1 2006/02/24 17:11:53 ucacdxa Exp $
+
+
+$string = shift;
+if(!defined($string)) {
+    die "I need the string to pad.";
+}
+$length = shift || die "I need the final length.";
+
+$padLength = $length - length($string);
+for($i=0; $i<$padLength; $i++) {
+    $string =~ s/^(.*)/0$1/;
+}
+
+print $string;

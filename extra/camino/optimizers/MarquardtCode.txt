@@ -1,0 +1,34 @@
+Levenberg-Marquardt Code
+________________________
+
+$Id$
+
+
+MarquardtMinimiser.java contains the basic Levenberg-Marquardt code.
+To minimize a particular objective function, extend MarquardtMinimiser
+and implement the function fObj, which computes the value of the
+objective function and its first and second derivatives at a specified
+point.
+
+MarquardtMinimiserTest.java is a test class for MarquardtMinimiser
+that implements a simple objective function and minimises.  The class
+contains some explanation of the use of the Minimiser in the comments
+of the code.
+
+MarquardtChiSqFitter.java is another example of the use of
+MarquardtMinimiser.  It implements a general non-linear model fitting
+routine by extension of MarquardtMinimiser.  Note that by default it
+uses NumDeriv to compute the derivatives of the model numerically, but
+the function dydas can be overridden to compute the derivatives
+analytically, which is more efficient.  Using NumDeriv can also
+provide a good test for correctness of analytical derivatives.
+
+NumDeriv.java implements a general numerical derivatives routine.
+Extend this class and implement the function that you want to compute
+the derivatives of in the abstract method func.  See
+MarquardtChiSqFitter for an example.  Note that it would be simple to
+adapt MarquardtMinimiser to use numerical derivatives by default using
+this class.  This is yet to be done.
+
+MarquardtMinimiserException.java is a standard extension of the
+Exception class used in MarquardtMinimiser.java.
