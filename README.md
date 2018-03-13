@@ -29,6 +29,6 @@ singularity run -e \
 --nv \
 -B INPUTS/:/INPUTS \
 -B OUTPUTS/:/OUTPUTS \
-dtiQA.img
+shub://justinblaber/dtiQA_app
 ```
 For more detailed instructions on the inputs please visit: [https://justinblaber.org/dwmri-preprocessing/](https://justinblaber.org/dwmri-preprocessing/)
