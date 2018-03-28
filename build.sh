@@ -35,7 +35,7 @@ chmod +x $SCRIPT
 
 # Build docker
 cd ..
-sudo docker build --rm -t justinblaber/dtiqa .
+sudo docker build --rm -t vuiiscci/dtiqa .
 
 # Push docker - note this only affects latest tag. Must retag and push if you want to give a specific tag
-sudo docker push justinblaber/dtiqa
+sudo docker push vuiiscci/dtiqa

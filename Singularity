@@ -1,2 +1,2 @@
 Bootstrap: docker
-From: justinblaber/dtiqa
+From: vuiiscci/dtiqa
