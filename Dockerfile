@@ -56,6 +56,9 @@ ENV LD_LIBRARY_PATH "${LD_LIBRARY_PATH}:/usr/local/MATLAB/MATLAB_Runtime/v92/run
 ENV PATH "${PATH}:/extra/fsl_5_0_10_eddy_5_0_11/bin"
 ENV FSLDIR /extra/fsl_5_0_10_eddy_5_0_11
 
+# Set up camino
+ENV CAMINO_HEAP_SIZE 32000
+
 # Set CMD
 RUN ln -sf bash /bin/sh
 CMD /extra/pipeline.sh
